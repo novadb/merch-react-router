@@ -1,6 +1,6 @@
 /** `/{region}/search`: full-text search over products (with facets) and pages; the query is the posted field `q`. */
 import { useEffect } from "react";
-import { Link, useActionData, type ShouldRevalidateFunctionArgs } from "react-router";
+import { Link, type ShouldRevalidateFunctionArgs } from "react-router";
 import type { Route } from "./+types/search";
 import type { Ctx } from "~/components/Content";
 import { preloadPictures, Range } from "~/components/Range";
@@ -48,12 +48,15 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 /** After a search the answer is the page: there is nothing to load again. */
 export const shouldRevalidate = ({ formMethod, defaultShouldRevalidate }: ShouldRevalidateFunctionArgs) => !formMethod && defaultShouldRevalidate;
 
-export default function SearchRoute({ loaderData }: Route.ComponentProps) {
+export default function SearchRoute({ loaderData, actionData }: Route.ComponentProps) {
   const text = useText();
-  const data = useActionData<typeof action>() ?? loaderData;
+  const data = actionData ?? loaderData;
   // A search starts at the top of its results. React Router keeps the scroll position after a posted form (it is
-  // usually a change to the page in view), and every search is one.
-  useEffect(() => scrollTo({ top: 0, behavior: "instant" }), [data]);
+  // usually a change to the page in view), and every search is one. Not for the page as opened: back and forward
+  // restore its position.
+  useEffect(() => {
+    if (actionData) scrollTo({ top: 0, behavior: "instant" });
+  }, [actionData]);
   const ctx: Ctx = { region: data.region, market: data.market, text, products: {}, targets: {}, images: {} };
   return (
     <>

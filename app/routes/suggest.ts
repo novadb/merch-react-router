@@ -22,9 +22,9 @@ export async function action({ request }: Route.ActionArgs) {
   if (!productFilter) return Response.json({ products: [], pages: [] } satisfies Suggestions);
 
   const market = MARKET[region];
-  const [products, pages] = await Promise.all([loadProducts(region, market, productFilter, "$score"), searchPages(region, q, 3)]);
+  const [products, pages] = await Promise.all([loadProducts(region, market, productFilter, "$score", 5), searchPages(region, q, 3)]);
   return Response.json({
-    products: products.slice(0, 5).map((p) => ({
+    products: products.map((p) => ({
       name: p.name, url: p.url, image: p.image ? smallSrc(p.image.src) : null, price: formatPrice(p.price, market, region),
     })),
     pages: pages.map((p) => ({ title: p.title, url: p.url })),

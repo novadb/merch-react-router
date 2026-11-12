@@ -16,7 +16,7 @@ Non-goals: reading NovaDB in the browser, writes to NovaDB, a database or shared
 
 - Run: `npm run dev`. It needs the Delivery login in its environment (`NOVA_DELIVERY_URL`, `NOVA_DELIVERY_USER`, `NOVA_DELIVERY_PASSWORD`) and fails loudly without it.
 - `npm run typecheck` (typegen, then `tsc`), `npm run build`, `docker build .`
-- `npx playwright test` against a running site (Firefox; `BASE_URL` selects the target). Reuse a dev server that already runs, else start your own on a free port. CI leaves out the tests tagged `@shopify` (buy button, cart): run them locally.
+- `npx playwright test` against a running site (Firefox; `BASE_URL` selects the target, default `npm run start` on port 3000). Not the dev server: it has no `server.js`, so the redirect test fails there. CI leaves out the tests tagged `@shopify` (buy button, cart): run them locally.
 - Local container (`localhost:4000`, podman): `uv run scripts/refresh-container.py` after every completed change; `--full` after a change to `package.json`, `package-lock.json` or `Dockerfile`.
 - Done means: typecheck and build pass, `docker build` succeeds, and the suite is green against the real Delivery API. "Should work" is not a result; report each gate with its output.
 - The suite asserts structure and data rules, not CMS copy. Its seed paths (e.g. `/uk/shop/t-shirts/we-build-value`) are CMS data: if one disappears, fix the test's path, not the app.
@@ -43,7 +43,7 @@ Before touching `app/lib/` or `app/components/Content.tsx` read `NOVADB.md`: the
 ## Where the code does not say why
 
 - Everything must work without JavaScript: check a changed page with JS off (the suite has such tests) and its HTML with `curl`.
-- A module that reads NovaDB (or uses Node) ends in `.server.ts`; a component imports only the others. Data reaches the browser only through loaders and actions.
+- A module that reads NovaDB (or uses Node) ends in `.server.ts`; a component imports only the others (`import type` excepted: it is erased). Data reaches the browser only through loaders and actions.
 - The site writes no query string and reads none (a foreign one is ignored): filters, sorting and search are POST forms answered with the page itself, so a filtered view has no URL of its own. That is intended. A route that accepts a form needs an `action` export, or the POST is a 405; a loader never sees the posted fields (the action answers them).
 - The range posts through a fetcher, never a navigation: a POST navigation would change history and scroll. Cards in a range are keyed by product: a card that stays keeps its element.
 - The region switch is a plain `<a>` (a document load): Shopify's cart takes the region's market when the page starts. CMS rich text links are document loads too.

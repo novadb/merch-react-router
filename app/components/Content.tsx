@@ -94,7 +94,7 @@ function ContentNode({ node, ctx, sizes = CONTENT_SIZES }: { node: VNode; ctx: C
 /** `sizes` of a card's picture: also the picture `preloadPictures` (`Range.tsx`) loads ahead. */
 export const CARD_SIZES = "(min-width: 700px) 320px, 100vw";
 
-/** Class names and HTML are read outside this file (`tests/site.spec.ts` selects `.product-card__*`) and copied by the other demos: change them only together. */
+// Class names and HTML are read outside this file (`tests/site.spec.ts` selects `.product-card__*`) and copied by the other demos: change them only together.
 /** `eager`: the picture loads at once, not when it comes near the window (a range's first cards after a change, preloaded). */
 export function ProductCard({ product: p, ctx, eager = false }: { product: Product; ctx: Ctx; eager?: boolean }) {
   const details = [

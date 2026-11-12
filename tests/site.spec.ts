@@ -574,6 +574,7 @@ test("typeahead suggests products and pages and is keyboard operable", async ({ 
   const target = await selected.getAttribute("data-href");
   await input.press("Enter");
   await expect(page).toHaveURL(new RegExp(`${target}$`));
+  await expect(listbox).toBeHidden(); // chosen: the list does not stay open over the next page
   // The last option ("search all") submits the search form instead of linking to a URL with the query in it.
   await page.goto("/uk/");
   await input.fill("coffee");
@@ -584,6 +585,7 @@ test("typeahead suggests products and pages and is keyboard operable", async ({ 
   await posted(page, () => input.press("Enter"));
   await expect(page).toHaveURL(/\/uk\/search$/);
   await expect(page.locator('main input[type="search"]')).toHaveValue("coffee");
+  await expect(listbox).toBeHidden();
   expect(await cards(page).count()).toBeGreaterThan(0);
 });
 

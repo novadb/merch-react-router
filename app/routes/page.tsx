@@ -1,5 +1,5 @@
 /** `/{region}/{path}`: a CMS page (with its live product range) or a product from the PIM. */
-import { useActionData, type ShouldRevalidateFunctionArgs } from "react-router";
+import type { ShouldRevalidateFunctionArgs } from "react-router";
 import type { Route } from "./+types/page";
 import { Crumbs, imageIds, referencedIds, VisualDocument, type Ctx, type Target } from "~/components/Content";
 import { ProductDetail } from "~/components/ProductDetail";
@@ -29,9 +29,10 @@ function documentImages(content: Page["content"], images: Map<number, Image>): R
 /** A page in the breadcrumb, named as in the navigation. */
 const toCrumb = (p: { url: string; navTitle: string }): Target => ({ url: p.url, title: p.navTitle });
 
-function siteTargets(site: Site, products: Product[], images: Map<number, Image>): Record<number, Target> {
+/** What the content links to or teases: the pages and products it refers to, by object ID. */
+function contentTargets(pages: Page[], products: Product[], images: Map<number, Image>): Record<number, Target> {
   const targets: Record<number, Target> = {};
-  for (const page of site.pages.values()) targets[page.id] = toTarget(page, images);
+  for (const page of pages) targets[page.id] = toTarget(page, images);
   for (const p of products) targets[p.id] = { url: p.url, title: p.name, image: p.image?.src };
   return targets;
 }
@@ -39,7 +40,7 @@ function siteTargets(site: Site, products: Product[], images: Map<number, Image>
 export async function loader({ params, request }: Route.LoaderArgs) {
   const region = regionOf(params.region);
   const market = MARKET[region];
-  const path = (params["*"] ?? "").replace(/^\/+|\/+$/g, "");
+  const path = params["*"].replace(/^\/+|\/+$/g, "");
   const [site, otherSite, groups] = await Promise.all([loadSite(region), loadSite(OTHER_LANGUAGE_REGION[region]), loadGroups(region)]);
   const page = site.byPath.get(path);
   const data = page ? await pageData(site, otherSite, page, groups, region, market)
@@ -55,11 +56,13 @@ async function pageRange(page: Page, region: Region, form: URLSearchParams) {
 }
 
 async function pageData(site: Site, otherSite: Site, page: Page, groups: Map<number, string>, region: Region, market: Market) {
-  const embeddedIds = [...referencedIds(page.content)].filter((ref) => !site.pages.has(ref));
-  const wantedImages = imageIds(page.content); // plus the teaser picture of every page (`siteTargets`)
-  for (const p of site.pages.values()) if (p.imageId) wantedImages.add(p.imageId);
+  // An ID the content refers to is a page of the site, else a product.
+  const refs = [...referencedIds(page.content)];
+  const linked = refs.flatMap((ref) => site.pages.get(ref) ?? []);
+  const wantedImages = imageIds(page.content); // plus the teaser picture of every page referred to
+  for (const p of linked) if (p.imageId) wantedImages.add(p.imageId);
   const [embedded, range, images] = await Promise.all([
-    productsByIds(embeddedIds, region, market),
+    productsByIds(refs.filter((ref) => !site.pages.has(ref)), region, market),
     pageRange(page, region, new URLSearchParams()),
     imagesByIds([...wantedImages]),
   ]);
@@ -71,7 +74,7 @@ async function pageData(site: Site, otherSite: Site, page: Page, groups: Map<num
     crumbs: breadcrumb(site, page).map(toCrumb),
     content: page.content,
     products: Object.fromEntries(embedded.map((p) => [p.id, p])),
-    targets: siteTargets(site, embedded, images),
+    targets: contentTargets(linked, embedded, images),
     images: documentImages(page.content, images),
     range,
     groupNames: Object.fromEntries(groups),
@@ -100,7 +103,7 @@ async function productData(site: Site, groups: Map<number, string>, region: Regi
  */
 export async function action({ params, request }: Route.ActionArgs) {
   const region = regionOf(params.region);
-  const page = (await loadSite(region)).byPath.get((params["*"] ?? "").replace(/^\/+|\/+$/g, "")) ?? notFound();
+  const page = (await loadSite(region)).byPath.get(params["*"].replace(/^\/+|\/+$/g, "")) ?? notFound();
   return { range: (await pageRange(page, region, await formOf(request))) ?? notFound() };
 }
 
@@ -114,9 +117,9 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 /** A posted range changes the range only: the page around it is not loaded again. */
 export const shouldRevalidate = ({ formMethod, defaultShouldRevalidate }: ShouldRevalidateFunctionArgs) => !formMethod && defaultShouldRevalidate;
 
-export default function PageRoute({ loaderData: data }: Route.ComponentProps) {
+// `posted`: the answer to the range form, posted without JavaScript.
+export default function PageRoute({ loaderData: data, actionData: posted }: Route.ComponentProps) {
   const text = useText();
-  const posted = useActionData<typeof action>(); // the range form, posted without JavaScript
   // React 19 moves <title> and <link> from anywhere in the tree into <head>.
   const head = (
     <>

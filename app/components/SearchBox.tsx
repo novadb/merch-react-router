@@ -31,15 +31,16 @@ export function SearchBox({ large = false, query }: { large?: boolean; query?: s
   const options = result ? [...result.products.map((p) => p.url), ...result.pages.map((p) => p.url), undefined] : [];
   const optionId = (index: number) => `${listId}-${index}`;
 
-  function choose(index: number) {
-    const href = options[index];
-    if (href) navigate(href);
-    else form.current?.requestSubmit();
-  }
-
   function close() {
     setQ(undefined);
     setActive(-1);
+  }
+
+  function choose(index: number) {
+    const href = options[index];
+    close(); // the box stays in the header while the next page loads
+    if (href) navigate(href);
+    else form.current?.requestSubmit();
   }
 
   function onInput(value: string) {

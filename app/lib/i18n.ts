@@ -1,5 +1,6 @@
 /** Regions, markets and the UI texts the site prints itself (labels from NovaDB, like the content). */
 import { useRouteLoaderData } from "react-router";
+import type { loader as rootLoader } from "../root"; // a type only: no cycle at run time
 import { PRODUCT } from "./schema";
 
 /**
@@ -52,8 +53,8 @@ export function alternatesOf(region: Region, own: string | undefined, other: str
  * - `values`: colours, materials and finishes, PIM objects a product references, by object ID: their name per language
  *   and, for a colour, its swatch.
  */
-export type PimValue = { name?: string; hex?: string };
 export type Labels = { texts: Record<string, string>; values: Record<string, PimValue> };
+export type PimValue = { name?: string; hex?: string };
 
 /** UI text key → the product attribute whose name it is. */
 export const ATTRIBUTE_TEXT = {
@@ -110,11 +111,9 @@ export function t(labels: Labels, region: Region): Texts {
   };
 }
 
-type RootData = { region: Region; labels: Labels };
-
 /** The texts of the current request: the root loader loads the labels once for every route. */
 export function useText(): Texts {
-  const root = useRouteLoaderData("root") as RootData | undefined;
+  const root = useRouteLoaderData<typeof rootLoader>("root");
   if (!root) throw new Error("useText() needs the root loader's data");
   return t(root.labels, root.region);
 }

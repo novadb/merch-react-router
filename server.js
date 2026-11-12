@@ -1,4 +1,4 @@
-// The site's server: what `react-router-serve` does, plus the one setting it has no switch for.
+// The site's server: what `react-router-serve` does, plus what it has no switch for: `trust proxy` and one URL per page.
 import { createRequestHandler } from "@react-router/express";
 import compression from "compression";
 import express from "express";
@@ -20,7 +20,8 @@ app.use(morgan("tiny"));
 // asks for the same data again, for ever. A data request ends in `.data` and is never matched here.
 app.use((req, res, next) => {
   const [path, search = ""] = req.originalUrl.split(/\?(.*)/s);
-  const wanted = /^\/(de|uk|us)$/.test(path) ? `${path}/` : path.length > 4 ? path.replace(/\/+$/, "") : path;
+  const home = /^\/(de|uk|us)\/?$/.exec(path); // the regions: REGIONS in app/lib/i18n.ts
+  const wanted = home ? `/${home[1]}/` : path.replace(/(?<=.)\/+$/, "");
   if ((req.method === "GET" || req.method === "HEAD") && wanted !== path) return res.redirect(301, wanted + (search && `?${search}`));
   next();
 });
