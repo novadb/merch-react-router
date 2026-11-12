@@ -1,6 +1,7 @@
 {
   "name": "merch-react-router",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "react-router dev",
