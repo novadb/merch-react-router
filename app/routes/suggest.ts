@@ -1,0 +1,32 @@
+import type { Route } from "./+types/suggest";
+import { formatPrice, MARKET } from "~/lib/i18n";
+import { smallSrc } from "~/lib/images";
+import { searchFilter } from "~/lib/products";
+import { loadProducts } from "~/lib/products.server";
+import { formOf, regionOf } from "~/lib/request";
+import { PRODUCT_SEARCH_FIELDS } from "~/lib/schema";
+import { searchPages } from "~/lib/site.server";
+
+/** The typeahead's answer: up to 5 products and 3 pages. */
+export type Suggestions = {
+  products: { name: string; url: string; image: string | null; price: string }[];
+  pages: { title: string; url: string }[];
+};
+
+/** POST /api/suggest with the form fields `lang` and `q` → `Suggestions` (JSON) for the typeahead (`SearchBox.tsx`). */
+export async function action({ request }: Route.ActionArgs) {
+  const form = await formOf(request);
+  const region = regionOf(form.get("lang"));
+  const q = (form.get("q") ?? "").trim();
+  const productFilter = q.length >= 2 ? searchFilter(q, PRODUCT_SEARCH_FIELDS) : undefined;
+  if (!productFilter) return Response.json({ products: [], pages: [] } satisfies Suggestions);
+
+  const market = MARKET[region];
+  const [products, pages] = await Promise.all([loadProducts(region, market, productFilter, "$score"), searchPages(region, q, 3)]);
+  return Response.json({
+    products: products.slice(0, 5).map((p) => ({
+      name: p.name, url: p.url, image: p.image ? smallSrc(p.image.src) : null, price: formatPrice(p.price, market, region),
+    })),
+    pages: pages.map((p) => ({ title: p.title, url: p.url })),
+  } satisfies Suggestions);
+}

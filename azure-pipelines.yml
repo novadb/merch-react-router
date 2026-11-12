@@ -1,0 +1,95 @@
+# Pull request validation: typecheck, build, docker build and the Playwright suite against the real Delivery API.
+# Not triggered by this file (`trigger: none`): the build-validation policy on `main` queues it for every PR and makes it
+# a blocking check. The variable group `merch-react-router` holds NOVA_DELIVERY_URL, NOVA_DELIVERY_USER and
+# NOVA_DELIVERY_PASSWORD (secret; a secret reaches a script only through `env:`). Shopify is not configured here: the
+# site renders no buy button and no cart, and the tests tagged @shopify (buy button, cart) run locally only.
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - group: merch-react-router
+  - name: PORT
+    value: 3000
+
+steps:
+  # Rules of the pull request itself (branch name, linked work item, merge commit message and its text): scripts/check-pull-request.py.
+  # The secure file lists terms the public commit message must not contain; it is not part of any repository.
+  - task: DownloadSecureFile@1
+    name: termlist
+    displayName: Download the list of terms a commit message must not contain
+    condition: eq(variables['Build.Reason'], 'PullRequest')
+    inputs:
+      secureFile: pr-text-denylist.txt
+
+  - script: python3 scripts/check-pull-request.py --denylist "$(termlist.secureFilePath)"
+    displayName: Check the pull request
+    condition: eq(variables['Build.Reason'], 'PullRequest')
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+  - task: NodeTool@0
+    displayName: Install Node.js
+    inputs:
+      versionSpec: 24.x
+
+  - script: npm ci
+    displayName: Install dependencies
+
+  - script: npm run typecheck
+    displayName: Typecheck
+
+  - script: npm run build
+    displayName: Build
+
+  - script: docker build -t merch-react-router:$(Build.BuildId) .
+    displayName: Build the Docker image (no push)
+
+  - script: npx playwright install --with-deps firefox
+    displayName: Install Firefox for Playwright
+
+  - script: nohup npm start > server.log 2>&1 &
+    displayName: Start the site
+    env:
+      PORT: $(PORT)
+      NOVA_DELIVERY_URL: $(NOVA_DELIVERY_URL)
+      NOVA_DELIVERY_USER: $(NOVA_DELIVERY_USER)
+      NOVA_DELIVERY_PASSWORD: $(NOVA_DELIVERY_PASSWORD)
+
+  - script: curl -fsS --retry 30 --retry-connrefused --retry-delay 2 -o /dev/null http://localhost:$(PORT)/de/
+    displayName: Wait for the site
+
+  # No retries: a red test is a finding. The paths the tests use are CMS data (see AGENTS.md, Gates). The only tests left
+  # out are the ones tagged @shopify (decision of the owner: Shopify is tested locally until further notice).
+  - script: npx playwright test --grep-invert @shopify --reporter=line,junit
+    displayName: Playwright suite (Firefox, without @shopify)
+    env:
+      BASE_URL: http://localhost:$(PORT)
+      PLAYWRIGHT_JUNIT_OUTPUT_FILE: $(System.DefaultWorkingDirectory)/test-results/junit.xml
+
+  - task: PublishTestResults@2
+    displayName: Publish test results
+    condition: always()
+    inputs:
+      testResultsFormat: JUnit
+      testResultsFiles: test-results/junit.xml
+      testRunTitle: Playwright (Firefox)
+      failTaskOnFailedTests: false  # the Playwright step already fails the run
+
+  - task: CopyFiles@2
+    displayName: Collect test output and server log
+    condition: failed()
+    inputs:
+      sourceFolder: $(System.DefaultWorkingDirectory)
+      contents: |
+        test-results/**
+        server.log
+      targetFolder: $(Build.ArtifactStagingDirectory)/failure-output
+
+  - task: PublishPipelineArtifact@1
+    displayName: Publish test output and server log
+    condition: failed()
+    inputs:
+      targetPath: $(Build.ArtifactStagingDirectory)/failure-output
+      artifactName: failure-output
