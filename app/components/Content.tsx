@@ -64,13 +64,20 @@ export function VisualDocument({ node, ctx, afterFirst }: { node?: VNode; ctx: C
   );
 }
 
-function ContentNode({ node, ctx }: { node: VNode; ctx: Ctx }) {
+/** `sizes` of a content picture: half a page beside text; the chapter's text column when it stands straight in a chapter, where site.css shows it wide. */
+const CONTENT_SIZES = "(min-width: 760px) 50vw, 100vw";
+const CHAPTER_SIZES = "(min-width: 1280px) 1024px, (min-width: 760px) 78vw, 100vw";
+
+function ContentNode({ node, ctx, sizes = CONTENT_SIZES }: { node: VNode; ctx: Ctx; sizes?: string }) {
   const Tag = (node.element || "div") as keyof JSX.IntrinsicElements;
   switch (node.type) {
-    case "group":
-      return <Tag className={node.class}>{node.children?.map((child, i) => <ContentNode key={i} node={child} ctx={ctx} />)}</Tag>;
+    case "group": {
+      // A chapter hands its own `sizes` to its children, and the picture's figure on to the picture; any other group starts again.
+      const childSizes = node.class === "merchChapter" ? CHAPTER_SIZES : node.class === "imageWithCaption" ? sizes : CONTENT_SIZES;
+      return <Tag className={node.class}>{node.children?.map((child, i) => <ContentNode key={i} node={child} ctx={ctx} sizes={childSizes} />)}</Tag>;
+    }
     case "image":
-      return node.objectId && ctx.images[node.objectId] ? <img className={node.class} src={ctx.images[node.objectId]} srcSet={srcSet(ctx.images[node.objectId])} sizes="(min-width: 760px) 50vw, 100vw" alt="" loading="lazy" /> : null;
+      return node.objectId && ctx.images[node.objectId] ? <img className={node.class} src={ctx.images[node.objectId]} srcSet={srcSet(ctx.images[node.objectId])} sizes={sizes} alt="" loading="lazy" /> : null;
     case "object": {
       // Like the CMS, which wraps what an object component renders in the component's own element: the editor's
       // stylesheet (built from site.css) then matches the same DOM as the site.

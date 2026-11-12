@@ -87,14 +87,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </header>
         )}
         <main id="main" aria-busy={navigating || undefined}>{children}</main>
-        {text && (
-          <footer className="site-footer">
-            <p dangerouslySetInnerHTML={text.poweredBy} />
-          </footer>
-        )}
-        <aside className="source">
-          <a className="source__repo" href={`https://github.com/novadb/${REPO}`}>{REPO}</a>
-        </aside>
+        <footer className="site-footer">
+          {text && <p dangerouslySetInnerHTML={text.poweredBy} />}
+          <a className="site-footer__repo" href={`https://github.com/novadb/${REPO}`}>{REPO}</a>
+        </footer>
+        {/* The NovaDB logo in the corner: decoration only, the footer's line names NovaDB in words. */}
+        <aside className="source" aria-hidden="true" />
         {root && <ShopifyCart />}
         <ScrollRestoration />
         <Scripts />

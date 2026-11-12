@@ -1,5 +1,5 @@
 /** `/{region}/{path}`: a CMS page (with its live product range) or a product from the PIM. */
-import { redirect, useActionData, type ShouldRevalidateFunctionArgs } from "react-router";
+import { useActionData, type ShouldRevalidateFunctionArgs } from "react-router";
 import type { Route } from "./+types/page";
 import { Crumbs, imageIds, referencedIds, VisualDocument, type Ctx, type Target } from "~/components/Content";
 import { ProductDetail } from "~/components/ProductDetail";
@@ -39,11 +39,7 @@ function siteTargets(site: Site, products: Product[], images: Map<number, Image>
 export async function loader({ params, request }: Route.LoaderArgs) {
   const region = regionOf(params.region);
   const market = MARKET[region];
-  // One URL per page: `/de/shop/` → `/de/shop`, `/de` → `/de/` (the canonical forms); a foreign query string (tracking) is kept.
-  const { pathname, search } = new URL(request.url);
   const path = (params["*"] ?? "").replace(/^\/+|\/+$/g, "");
-  const wanted = path === "" ? `/${region}/` : pathname.replace(/\/+$/, "");
-  if (pathname !== wanted) throw redirect(wanted + search, 301);
   const [site, otherSite, groups] = await Promise.all([loadSite(region), loadSite(OTHER_LANGUAGE_REGION[region]), loadGroups(region)]);
   const page = site.byPath.get(path);
   const data = page ? await pageData(site, otherSite, page, groups, region, market)

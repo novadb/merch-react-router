@@ -265,6 +265,16 @@ test("one URL per page: trailing slashes redirect permanently to the canonical f
   for (const ok of ["/de/", "/uk/shop/t-shirts", PRODUCT.uk]) expect((await request.get(ok, { maxRedirects: 0 })).status(), ok).toBe(200);
 });
 
+test("the logo leads to the home page from any page, also when the router navigates (the data of `/de/` must not redirect to itself)", async ({ page }) => {
+  for (const path of [COLLECTION.de, PRODUCT.de, "/de/shop"]) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.locator("header a.logo").click();
+    await expect(page).toHaveURL(/\/de\/$/);
+    await expect(page.locator("header a.logo")).toHaveAttribute("href", "/de/");
+    await expect(page.locator("h1, .merchDisplay").first()).toBeVisible();
+  }
+});
+
 test("a form posted through a proxy that ends TLS is answered", async ({ request, baseURL }) => {
   // The browser names the public https origin; the site itself may be reached over http, behind the proxy.
   const origin = `https://${new URL(baseURL!).host}`;
@@ -368,14 +378,16 @@ test("uk and us share the English texts, de has German ones", async ({ page }) =
   expect(de).not.toEqual(uk);
 });
 
-test("every page links to this demo's source on GitHub from the corner, the error page too", async ({ page }) => {
+test("every page links to this demo's source on GitHub from the footer, the error page too; the corner holds the NovaDB logo alone", async ({ page }) => {
   for (const path of ["/de/", "/uk/shop/t-shirts", "/us/no-such-page"]) {
     await page.goto(path);
-    const link = page.locator("aside.source a.source__repo");
+    const link = page.locator("footer.site-footer a.site-footer__repo");
     await expect(link).toBeVisible();
     const name = (await link.innerText()).trim();
     expect(name).toMatch(/^merch-[a-z0-9-]+$/);
     await expect(link).toHaveAttribute("href", `https://github.com/novadb/${name}`);
+    await expect(page.locator("aside.source")).toBeVisible();
+    await expect(page.locator("aside.source *")).toHaveCount(0);
   }
 });
 
@@ -419,6 +431,24 @@ test("content classes the CMS uses are styled: a rail of page teasers is a grid,
   await page.goto("/de/shop");
   const teaser = page.locator(".merchRail .page-teaser").first();
   expect((await teaser.boundingBox())!.width).toBeLessThan(500);
+});
+
+test("a picture in a chapter is shown as it is, never cropped: one straight in the chapter spans its column, one beside text is smaller", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/us/behind-this-shop");
+  const pictures = page.locator(".merchChapter img");
+  await expect(pictures.first()).toBeVisible();
+  for (const picture of await pictures.all()) {
+    await picture.scrollIntoViewIfNeeded();
+    await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+    const { box, natural } = await picture.evaluate((img: HTMLImageElement) => ({ box: img.getBoundingClientRect(), natural: img.naturalWidth / img.naturalHeight }));
+    expect(box.width / box.height, "the picture keeps its own proportions").toBeCloseTo(natural, 1);
+  }
+  const wide = page.locator(".merchChapter > .imageWithCaption img").first();
+  const beside = page.locator(".merchSplit img").first();
+  expect((await wide.boundingBox())!.width).toBeGreaterThan((await beside.boundingBox())!.width * 1.5);
+  expect(await wide.getAttribute("sizes")).not.toBe(await beside.getAttribute("sizes"));
+  expect(await wide.getAttribute("srcset")).toContain("/media/1600/");
 });
 
 test("every colour swatch is painted with the colour's hex from the PIM", async ({ page }) => {
