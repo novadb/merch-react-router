@@ -1,6 +1,8 @@
 /**
  * What every route reads from a request: the region from the path (language, texts, market and currency follow from
- * it) and the fields of a POST form. The site neither reads nor writes a query string.
+ * it) and the fields of a POST form. The site neither reads nor writes a query string: a filtered view or a search has
+ * no URL of its own, so nothing a visitor typed ends up in a link, a log or the index. Shareable filter URLs are a
+ * different design: the range's fetcher, the typeahead and the route discovery mode (`react-router.config.ts`) follow from this rule.
  */
 import { data } from "react-router";
 import { isRegion, type Region } from "./i18n";

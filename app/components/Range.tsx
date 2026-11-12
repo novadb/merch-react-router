@@ -89,6 +89,7 @@ export function Range({ ctx, range, groupNames, keep = {} }: Props) {
     const el = section.current!;
     const start = parseFloat(getComputedStyle(el).scrollMarginTop); // where the range starts below the sticky header
     if (Math.abs(scrollY - scrolled.current) > 1 || el.lastElementChild!.getBoundingClientRect().bottom < start) el.scrollIntoView({ behavior: "instant" });
+    // The card's link takes the focus: one `.product-card__link` per card (`ProductCard`).
     if (focusFrom.current !== undefined) el.querySelectorAll<HTMLElement>(".product-card__link")[focusFrom.current]?.focus();
     focusFrom.current = undefined;
   }, [selection]);

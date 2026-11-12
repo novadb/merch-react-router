@@ -65,6 +65,7 @@ export default function SearchRoute({ loaderData, actionData }: Route.ComponentP
       <section className="merchHero merchHero--compact">
         <p className="merchKicker">{text.search}</p>
         <h1 className="merchDisplay">{text.searchTitle(data.q)}</h1>
+        {/* `key`: a new search remounts the form, so its field shows the query of the answer (a default value is read once). */}
         <SearchBox key={data.q} large query={data.q} />
         {data.pages.length > 0 && (
           <nav className="search-pages" aria-label={text.pagesFound}>
@@ -73,6 +74,7 @@ export default function SearchRoute({ loaderData, actionData }: Route.ComponentP
           </nav>
         )}
       </section>
+      {/* `key`: a new search starts a new range (see `page.tsx`). */}
       <Range key={data.q} ctx={ctx} range={data.range} groupNames={data.groupNames} keep={data.q ? { q: data.q } : {}} />
     </>
   );

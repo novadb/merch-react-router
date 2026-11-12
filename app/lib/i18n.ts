@@ -29,6 +29,7 @@ export type Market = "EU" | "UK" | "US";
 export const MARKET: Record<Region, Market> = { de: "EU", uk: "UK", us: "US" };
 const CURRENCY: Record<Market, string> = { EU: "EUR", US: "USD", UK: "GBP" };
 
+/** The price in the region's currency and number format; "" where the product has no price in this market. */
 export function formatPrice(value: number | undefined, market: Market, region: Region): string {
   if (value === undefined) return "";
   return new Intl.NumberFormat(HTML_LANG[region], { style: "currency", currency: CURRENCY[market] }).format(value);

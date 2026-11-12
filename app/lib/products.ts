@@ -14,12 +14,14 @@ export type Product = {
    */
   color?: string;
   materials: string[];
+  /** Cup volume in ml. */
   volume?: number;
   /** Sticker finishes, pieces per set, laptop sleeve screen size in inches. */
   finishes: string[];
   pieces?: number;
   screenSize?: number;
   price?: number;
+  /** `false` is sold out; not set: shown as available, but not counted by the in-stock filter. */
   inStock?: boolean;
   image?: Image;
   groupId?: number;

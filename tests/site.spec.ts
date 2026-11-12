@@ -560,6 +560,13 @@ test("search finds products by name and SKU and offers facets", async ({ page })
   await expect(page.locator(".range__count")).toBeVisible();
 });
 
+test("posted facet values that are no IDs and a huge `shown` are ignored, a body that is no form is no server error", async ({ request }) => {
+  const fields = { q: "mug", color: "abc", material: "zzz", group: "zzz", shown: "99999999999999" };
+  for (const path of ["/uk/search", "/uk/shop/t-shirts"]) expect((await request.post(path, { form: fields })).status(), path).toBe(200);
+  const noForm = await request.post("/api/suggest", { data: {}, headers: { "Content-Type": "application/json" } });
+  expect(noForm.status()).toBeLessThan(500);
+});
+
 test("typeahead suggests products and pages and is keyboard operable", async ({ page }) => {
   await page.goto("/uk/");
   const input = page.locator('header input[name="q"]');
@@ -629,7 +636,7 @@ test("pictures have unchangeable URLs: the content address of the file, cached f
   const again = await request.get(src!, { headers: { "If-None-Match": etag } });
   expect(again.status()).toBe(304);
 
-  // Object IDs, unknown names and anything that is not a hash (a thumbnail route is gone) are 404.
+  // Object IDs, unknown names and anything that is not a hash are 404.
   for (const path of ["/media/2099519", "/media/2099519/thumb", `${src}x`, "/media/00000000-0000-0000-0000-000000000000.png", "/media/thumb/abc", "/media/thumb/123", "/media/..%2Fetc", `/media/401/${name}`, `/media/0x190/${name}`, `/media/400/${name}x`, "/media/400/00000000000000000000000000000000.svg"]) {
     expect((await request.get(path)).status(), path).toBe(404);
   }
@@ -661,7 +668,7 @@ test("no URL in the HTML carries a query string, and every form posts", async ({
   await check("search");
 });
 
-test("unknown pages and regions are a 404, /en/ no longer exists", async ({ page }) => {
+test("unknown pages and regions are a 404, also a first segment that is no region, e.g. /en/", async ({ page }) => {
   expect((await page.goto("/uk/does-not-exist"))?.status()).toBe(404);
   for (const path of ["/fr/", "/en/", "/en/shop/t-shirts", "/en/search"]) expect((await page.goto(path))?.status(), path).toBe(404);
 });

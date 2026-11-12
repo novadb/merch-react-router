@@ -7,7 +7,7 @@ import { NAME, PAGE, PAGE_SEARCH_FIELDS, TYPE } from "./schema";
 /** One node of a Visual Document as the Delivery API returns it. */
 export type VNode = {
   type: "group" | "text" | "image" | "object" | "unknown";
-  /** API identifier of the component's definition (`visualComponentRoot`, `websiteHero`, …); the site renders by `type`, `element` and `class`. */
+  /** API identifier of the component's definition. The site does not read it: it renders by `type`, `element` and `class` (`merchChapter`, `imageWithCaption`), and the set of classes is closed in the CMS (`COMPONENT_CLASSES` in `tests/site.spec.ts`). */
   definition: string;
   element?: string;
   class?: string;
@@ -23,6 +23,7 @@ export type Page = {
   navTitle: string;
   /** URL of the page including the language prefix, e.g. `/de/shop/tassen`. */
   url: string;
+  /** The URL without the region and outer slashes ("" for the home page): the key of `Site.byPath`. */
   path: string;
   segment: string;
   imageId?: number;

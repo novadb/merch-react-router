@@ -1,7 +1,8 @@
 /**
  * Every NovaDB name the site depends on, in one place. IDs of branches and object types differ from installation to
- * installation, API identifiers do not, so the code addresses everything by identifier. The identifiers carry the
- * prefix `merch` because they must be unique across branches.
+ * installation, API identifiers do not, so the code addresses everything by identifier. The site's own identifiers carry
+ * the prefix `merch` because they must be unique across branches; NovaDB's own (`image`, `typeAttribute`, `attributeName`,
+ * the file attributes) do not.
  *
  * The Delivery API serves an identifier with a lower-case first letter, which is why the keys below start in lower case.
  * A numeric ID belongs here too (as a named constant with a comment) if one is ever unavoidable; today there is none.
@@ -42,7 +43,7 @@ export const PAGE = {
   parent: "merchPageParent",
 } as const;
 
-/** Attributes of a product. */
+/** Attributes of a product. Only what the type releases to the Delivery API arrives in `props`: an unreleased attribute reads as unset, without an error. */
 export const PRODUCT = {
   name: "merchProductName",
   description: "merchProductDescription",
@@ -52,6 +53,7 @@ export const PRODUCT = {
   inStock: "merchProductInStock",
   images: "merchProductImages",
   similar: "merchProductSimilar",
+  /** Unlike a page's, the whole path without the region (`shop/t-shirts/we-build-value`), not one segment. */
   urlSegment: "merchProductUrlSegment",
   shopifyId: "merchProductShopifyId",
   /** References to `merchColor`, `merchMaterial`, `merchFinish` objects. */

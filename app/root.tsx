@@ -12,12 +12,13 @@ import type { Route } from "./+types/root";
 // `?url`: Vite builds the file under a name that carries its content hash and hands back that URL, cacheable for good.
 import siteCss from "./site.css?url";
 
-/** This demo's repository on GitHub (`github.com/novadb/<REPO>`), linked from the corner of every page. */
+/** This demo's repository on GitHub (`github.com/novadb/<REPO>`), linked from the footer of every page. */
 const REPO = "merch-react-router";
 
 export const links: Route.LinksFunction = () => [{ rel: "stylesheet", href: siteCss }];
 
 export async function loader({ params }: Route.LoaderArgs) {
+  // Not a region (`/`, or `/en/…`, which is a 404): its error page still needs texts, the US ones.
   const region: Region = isRegion(params.region) ? params.region : "us";
   const [site, labels] = await Promise.all([loadSite(region), loadLabels(region)]);
   const nav = site.home.children.map((p) => ({ url: p.url, title: p.navTitle, children: p.children.map((c) => ({ url: c.url, title: c.navTitle })) }));

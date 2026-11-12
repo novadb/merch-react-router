@@ -83,7 +83,7 @@ export function SearchBox({ large = false, query }: { large?: boolean; query?: s
       <input type="search" name="q" defaultValue={query} placeholder={text.searchPlaceholder} aria-label={text.search} autoComplete="off"
         {...(ready && { role: "combobox", "aria-controls": listId, "aria-autocomplete": "list", "aria-expanded": open })}
         aria-activedescendant={active >= 0 ? optionId(active) : undefined}
-        onChange={(event) => onInput(event.target.value)} onKeyDown={onKeyDown} onBlur={() => setTimeout(close, 100)} />
+        onChange={(event) => onInput(event.target.value)} onKeyDown={onKeyDown} onBlur={() => setTimeout(close, 100)} /* a click on an option is a mousedown first: the list stays long enough to receive it */ />
       {ready && (
         <ul id={listId} className="suggest" role="listbox" hidden={!open}>
           {result && (

@@ -41,9 +41,9 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const region = regionOf(params.region);
   const market = MARKET[region];
   const path = params["*"].replace(/^\/+|\/+$/g, "");
-  const [site, otherSite, groups] = await Promise.all([loadSite(region), loadSite(OTHER_LANGUAGE_REGION[region]), loadGroups(region)]);
+  const [site, groups] = await Promise.all([loadSite(region), loadGroups(region)]);
   const page = site.byPath.get(path);
-  const data = page ? await pageData(site, otherSite, page, groups, region, market)
+  const data = page ? await pageData(site, page, groups, region, market)
     : await productData(site, groups, region, market, path);
   return { ...data, seo: seoOf(request, data.canonical, data.alternates) };
 }
@@ -55,16 +55,18 @@ async function pageRange(page: Page, region: Region, form: URLSearchParams) {
   return products.length ? rangeOf(products, form, "name") : null;
 }
 
-async function pageData(site: Site, otherSite: Site, page: Page, groups: Map<number, string>, region: Region, market: Market) {
+async function pageData(site: Site, page: Page, groups: Map<number, string>, region: Region, market: Market) {
   // An ID the content refers to is a page of the site, else a product.
   const refs = [...referencedIds(page.content)];
   const linked = refs.flatMap((ref) => site.pages.get(ref) ?? []);
   const wantedImages = imageIds(page.content); // plus the teaser picture of every page referred to
   for (const p of linked) if (p.imageId) wantedImages.add(p.imageId);
-  const [embedded, range, images] = await Promise.all([
+  // The other language's page tree is for the hreflang links of a page; a product has no use for it.
+  const [embedded, range, images, otherSite] = await Promise.all([
     productsByIds(refs.filter((ref) => !site.pages.has(ref)), region, market),
     pageRange(page, region, new URLSearchParams()),
     imagesByIds([...wantedImages]),
+    loadSite(OTHER_LANGUAGE_REGION[region]),
   ]);
   return {
     kind: "page" as const, region, market,
@@ -134,6 +136,7 @@ export default function PageRoute({ loaderData: data, actionData: posted }: Rout
     return <>{head}{crumbs}<ProductDetail ctx={ctx} product={data.product} groupName={data.groupName} similar={data.similar} /></>;
   }
   const ctx: Ctx = { region: data.region, market: data.market, text, products: data.products, targets: data.targets, images: data.images };
+  // `key`: another page starts a new range; `Range` shows its fetcher's answer for as long as it lives, not the loader's data.
   const range = data.range && <Range key={data.canonical} ctx={ctx} range={posted?.range ?? data.range} groupNames={data.groupNames} />;
   return <>{head}{crumbs}<VisualDocument node={data.content} ctx={ctx} afterFirst={range} /></>;
 }

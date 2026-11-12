@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Single source of truth for coding agents in this repository; `CLAUDE.md` only imports it. A line stays only if an agent would decide wrongly without it. Why a piece of code is the way it is belongs in a comment at that code, not here.
+Single source of truth for coding agents in this repository; `CLAUDE.md` only imports it. A line stays only if an agent would decide wrongly without it.
 
 ## Project
 
@@ -39,6 +39,7 @@ Before touching `app/lib/` or `app/components/Content.tsx` read `NOVADB.md`: the
 - Never weaken, skip or delete a test to get green.
 - Change only what the task needs; list unrelated findings at the end of your answer (`file:line`).
 - Ask before adding a dependency or touching `Dockerfile` or deploy configuration.
+- Comments say why the code is this way (a constraint of NovaDB, the framework, browser or contract) or what a name stands for, true for a reader who never saw an earlier version. A declaration other files use gets a doc comment when name and type leave something open (a unit, what a missing value means); a file header or one comment for a group may cover several. Never what the code plainly does or how it changed: that goes in the pull request. No TODO, no commented-out code; test names likewise.
 
 ## Where the code does not say why
 
@@ -49,7 +50,7 @@ Before touching `app/lib/` or `app/components/Content.tsx` read `NOVADB.md`: the
 - The region switch is a plain `<a>` (a document load): Shopify's cart takes the region's market when the page starts. CMS rich text links are document loads too.
 - `app/site.css`, `NOVADB.md` and everything in `public/` (`favicon.svg`, `robots.txt`, the fonts) are the same files in every port, kept identical from outside this repository: never adapt them to this stack. Only how they reach the browser is this demo's own (`?url` in `root.tsx`). `site.css` is also the CMS editor's stylesheet: keep its `@editor` markers, and between them nothing of the header, the range or the product page.
 - Page content is made from a closed set of components: a class `merch*` in content that is not in `COMPONENT_CLASSES` (`tests/site.spec.ts`) fails the suite. Compose, or follow the structure with CSS, before asking for a new one.
-- The shop is Shopify's own Buy Button and cart (`app/components/Shop.tsx`, a port of the Shopify part of the other demos' shared `site.js`: change both together). What the shop can configure (prices per market, product titles, languages) is configured there, not in code. Without `SHOPIFY_DOMAIN` and `SHOPIFY_STOREFRONT_TOKEN` there are no buy buttons and no cart, silently: keep both in `.env`.
+- The shop is Shopify's own Buy Button and cart (`app/components/Shop.tsx`, the React form of the shared client script's Shopify part: change both together). What the shop can configure (prices per market, product titles, languages) is configured there, not in code. Without `SHOPIFY_DOMAIN` and `SHOPIFY_STOREFRONT_TOKEN` there are no buy buttons and no cart, silently: keep both in `.env`.
 
 ## Git
 
