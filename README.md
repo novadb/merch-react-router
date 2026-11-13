@@ -54,7 +54,7 @@ Playwright against the real Delivery API); the PR can only be completed when it 
 | `server.js` | the production server (`npm run start`): Express with the React Router handler; it trusts the proxy's `X-Forwarded-*` headers |
 | `app/routes/page.tsx` | `/{region}/…` (`de`, `uk`, `us`): a page (content + live range) or a product |
 | `app/routes/search.tsx`, `suggest.ts` | search page and the typeahead's JSON |
-| `app/routes/media-file.ts`, `media-scaled.ts`, `app/lib/media.server.ts`, `start.ts` | picture proxy with disk cache and scaled WebP variants (`sharp`), `/` → region by `Accept-Language` |
+| `app/routes/media.ts`, `app/lib/media.server.ts`, `start.ts` | picture proxy (`/media/{md5}/original{ext}`, `/media/{md5}/{width}{ext}.webp`) with disk cache and scaled WebP variants (`sharp`), `/` → region by `Accept-Language` |
 
 ## Deviations
 

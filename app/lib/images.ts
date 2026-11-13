@@ -1,25 +1,25 @@
 /** Picture URLs of the media proxy (`app/lib/media.server.ts`) and their scaled variants, for server and browser. */
 
-/** `src`: the file by content address, `/media/{md5}{extension}`. */
+/** `src`: the file by content address, `/media/{md5}/original{extension}`. */
 export type Image = { src: string };
 
-/** Widths of the scaled variants (`/media/{width}/{md5}{ext}`): a fixed list, so the cache cannot be filled with arbitrary sizes. */
+/** Widths of the scaled variants (`/media/{md5}/{width}{ext}.webp`): a fixed list, so the cache cannot be filled with arbitrary sizes. */
 export const MEDIA_WIDTHS = [400, 800, 1200, 1600];
 
-/** The file name of a picture URL `/media/{md5}{ext}` that has scaled variants (`/media/{width}/{md5}{ext}`): not SVG, which is vector, nor a URL that is not a media file. */
-function scalable(src: string): string | undefined {
-  const name = src.match(/^\/media\/([^/]+)$/)?.[1];
-  return name?.endsWith(".svg") ? undefined : name;
+/** The folder and extension of a picture URL `/media/{md5}/original{ext}` that has scaled variants (`/media/{md5}/{width}{ext}.webp`, which keep the extension because NovaDB serves a file only under it): not SVG, which is vector, nor a URL that is not a media file. */
+function scalable(src: string): { folder: string; ext: string } | undefined {
+  const [, folder, ext] = src.match(/^(\/media\/[^/]+)\/original(\.[a-z0-9]{1,5})$/) ?? [];
+  return ext && ext !== ".svg" ? { folder, ext } : undefined;
 }
 
 /** `srcset` of a picture URL: all its scaled variants; undefined for SVG and for a URL that is not a media file. */
 export function srcSet(src: string): string | undefined {
-  const name = scalable(src);
-  return name && MEDIA_WIDTHS.map((w) => `/media/${w}/${name} ${w}w`).join(", ");
+  const file = scalable(src);
+  return file && MEDIA_WIDTHS.map((w) => `${file.folder}/${w}${file.ext}.webp ${w}w`).join(", ");
 }
 
 /** The smallest scaled variant of a picture URL, for small pictures such as the typeahead's; SVG stays as it is. */
 export function smallSrc(src: string): string {
-  const name = scalable(src);
-  return name ? `/media/${MEDIA_WIDTHS[0]}/${name}` : src;
+  const file = scalable(src);
+  return file ? `${file.folder}/${MEDIA_WIDTHS[0]}${file.ext}.webp` : src;
 }

@@ -448,7 +448,7 @@ test("a picture in a chapter is shown as it is, never cropped: one straight in t
   const beside = page.locator(".merchSplit img").first();
   expect((await wide.boundingBox())!.width).toBeGreaterThan((await beside.boundingBox())!.width * 1.5);
   expect(await wide.getAttribute("sizes")).not.toBe(await beside.getAttribute("sizes"));
-  expect(await wide.getAttribute("srcset")).toContain("/media/1600/");
+  expect(await wide.getAttribute("srcset")).toMatch(/\/media\/[0-9a-f-]{32,36}\/1600\.[a-z0-9]+\.webp 1600w/);
 });
 
 test("every colour swatch is painted with the colour's hex from the PIM", async ({ page }) => {
@@ -601,7 +601,7 @@ test("typeahead suggests products and pages and is keyboard operable", async ({ 
 test("the typeahead shows the 400 px variant of a picture, named by content", { tag: "@suggest-json" }, async ({ request }) => {
   const suggest = await request.post("/api/suggest", { form: { lang: "uk", q: "coffee" } });
   const { products } = await suggest.json();
-  expect(products[0].image).toMatch(/^\/media\/400\/[0-9a-f-]{32,36}\.[a-z0-9]+$/);
+  expect(products[0].image).toMatch(/^\/media\/[0-9a-f-]{32,36}\/400\.[a-z0-9]+\.webp$/);
   const thumb = await request.get(products[0].image);
   expect(thumb.status()).toBe(200);
   expect(thumb.headers()["content-type"]).toBe("image/webp");
@@ -611,23 +611,23 @@ test("the typeahead shows the 400 px variant of a picture, named by content", { 
 });
 
 test("pictures have unchangeable URLs: the content address of the file, cached for good", async ({ page, request }) => {
-  // The full picture is named by the MD5 of the file and its extension; there is no thumbnail route.
+  // The full picture is named by the MD5 of the file and its extension, in the folder of the file's variants; there is no thumbnail route.
   await page.goto(PRODUCT.uk);
   const src = await page.locator(".pdp__media img").getAttribute("src");
-  expect(src).toMatch(/^\/media\/[0-9a-f-]{32,36}\.[a-z0-9]+$/);
+  const [, md5, ext] = src!.match(/^\/media\/([0-9a-f-]{32,36})\/original(\.[a-z0-9]+)$/)!;
   const full = await request.get(src!);
   expect(full.status()).toBe(200);
   expect(full.headers()["cache-control"]).toMatch(/max-age=31536000.*immutable/);
 
-  // Scaled variants (WebP) are named by width in the path, one of a fixed list; SVG has none.
-  const name = src!.replace("/media/", "");
-  expect(await page.locator(".pdp__media img").getAttribute("srcset")).toContain(`/media/400/${name} 400w`);
-  const scaled = await request.get(`/media/400/${name}`);
+  // Scaled variants keep the extension and end in .webp; the width is one of a fixed list; SVG has none.
+  const variant = `/media/${md5}/400${ext}.webp`;
+  expect(await page.locator(".pdp__media img").getAttribute("srcset")).toContain(`${variant} 400w`);
+  const scaled = await request.get(variant);
   expect(scaled.status()).toBe(200);
   expect(scaled.headers()["content-type"]).toBe("image/webp");
   expect(scaled.headers()["cache-control"]).toMatch(/max-age=31536000.*immutable/);
   expect(Number(scaled.headers()["content-length"])).toBeLessThan(Number(full.headers()["content-length"]));
-  const scaledAgain = await request.get(`/media/400/${name}`, { headers: { "If-None-Match": scaled.headers()["etag"] } });
+  const scaledAgain = await request.get(variant, { headers: { "If-None-Match": scaled.headers()["etag"] } });
   expect(scaledAgain.status()).toBe(304);
 
   // Nothing can have changed under such a name: whoever has the tag gets a 304 without a body.
@@ -636,8 +636,11 @@ test("pictures have unchangeable URLs: the content address of the file, cached f
   const again = await request.get(src!, { headers: { "If-None-Match": etag } });
   expect(again.status()).toBe(304);
 
-  // Object IDs, unknown names and anything that is not a hash are 404.
-  for (const path of ["/media/2099519", "/media/2099519/thumb", `${src}x`, "/media/00000000-0000-0000-0000-000000000000.png", "/media/thumb/abc", "/media/thumb/123", "/media/..%2Fetc", `/media/401/${name}`, `/media/0x190/${name}`, `/media/400/${name}x`, "/media/400/00000000000000000000000000000000.svg"]) {
+  // Object IDs, unknown names, anything that is not a hash and every other form of a file's URL are 404, the former forms included.
+  const missing = "00000000000000000000000000000000";
+  for (const path of ["/media/2099519", "/media/2099519/thumb", `${src}x`, "/media/00000000-0000-0000-0000-000000000000/original.png", "/media/thumb/abc", "/media/thumb/123", "/media/..%2Fetc",
+    `/media/${md5}/401${ext}.webp`, `/media/${md5}/0x190${ext}.webp`, `/media/${md5}/4e2${ext}.webp`, `/media/${md5}/400${ext}.webpx`, `/media/${md5}/400${ext}`, `/media/${md5}/400${ext}.webp.webp`, `/media/${md5}/original${ext}.webp`,
+    `/media/${missing}/400.svg.webp`, `/media/${md5}${ext}`, `/media/400/${md5}${ext}`]) {
     expect((await request.get(path)).status(), path).toBe(404);
   }
 });

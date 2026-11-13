@@ -11,7 +11,7 @@ export function toImages(objs: NovaObject[]): Map<number, Image> {
   const images = new Map<number, Image>();
   for (const { meta, props } of objs) {
     if (!props[IMAGE.md5] || !props[IMAGE.extension]) continue;
-    images.set(meta.id, { src: `/media/${props[IMAGE.md5]}${props[IMAGE.extension]}` });
+    images.set(meta.id, { src: `/media/${props[IMAGE.md5]}/original${props[IMAGE.extension]}` });
   }
   return images;
 }

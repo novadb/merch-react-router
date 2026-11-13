@@ -8,7 +8,7 @@ import type { VNode } from "~/lib/site.server";
 
 /** Everything a link or teaser in content can point at: pages and products, by object ID. */
 export type Target = { url: string; title: string; image?: string };
-/** `images`: the picture URL (`/media/{md5}{ext}`) of each image object the document embeds, by object ID. */
+/** `images`: the picture URL (`/media/{md5}/original{ext}`) of each image object the document embeds, by object ID. */
 export type Ctx = { region: Region; market: Market; text: Texts; products: Record<number, Product>; targets: Record<number, Target>; images: Record<number, string> };
 
 /** Object IDs a document refers to: embedded objects and links inside rich text. */
