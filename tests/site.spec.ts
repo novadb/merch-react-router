@@ -23,7 +23,8 @@ const price = (page: Page) => page.locator(".pdp__price").innerText();
  * way the range or the page is `aria-busy`.
  */
 async function posted(page: Page, act: () => Promise<unknown>) {
-  const response = page.waitForResponse((r) => r.request().method() === "POST" && !new URL(r.url()).pathname.startsWith("/api/"));
+  // The form's POST goes to the page or, in a demo that keeps its pages as files, to `/api/page/…`; the typeahead's own POST is `/api/suggest`.
+  const response = page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname !== "/api/suggest");
   await act();
   const answer = await response;
   expect(answer.status()).toBe(200);
