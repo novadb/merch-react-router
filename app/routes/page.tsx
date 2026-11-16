@@ -8,7 +8,7 @@ import type { Image } from "~/lib/images";
 import { imagesByIds } from "~/lib/images.server";
 import { alternatesOf, MARKET, OTHER_LANGUAGE_REGION, useText, type Market, type Region } from "~/lib/i18n";
 import { rangeOf, type Product } from "~/lib/products";
-import { loadProducts, productByPath, productsByIds } from "~/lib/products.server";
+import { loadProducts, productByPath, productsByIds, setContents } from "~/lib/products.server";
 import { formOf, regionOf, notFound } from "~/lib/request";
 import { PRODUCT } from "~/lib/schema";
 import { seoOf } from "~/lib/seo";
@@ -45,7 +45,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const page = site.byPath.get(path);
   const data = page ? await pageData(site, page, groups, region, market)
     : await productData(site, groups, region, market, path);
-  return { ...data, seo: seoOf(request, data.canonical, data.alternates) };
+  return { ...data, seo: seoOf(request, data.canonical, data.alternates, data.seoHints) };
 }
 
 /** The live range of a category page: the products of its groups; null for a page without one. */
@@ -70,6 +70,7 @@ async function pageData(site: Site, page: Page, groups: Map<number, string>, reg
   ]);
   return {
     kind: "page" as const, region, market,
+    seoHints: {},
     canonical: page.url,
     title: page.title,
     alternates: alternatesOf(region, page.path, otherSite.pages.get(page.id)?.path),
@@ -85,14 +86,21 @@ async function pageData(site: Site, page: Page, groups: Map<number, string>, reg
 
 async function productData(site: Site, groups: Map<number, string>, region: Region, market: Market, path: string) {
   const product = (path && (await productByPath(region, market, path))) || notFound();
-  const [similar, [other]] = await Promise.all([productsByIds(product.similar, region, market), productsByIds([product.id], OTHER_LANGUAGE_REGION[region], market)]);
+  const [similar, accessories, spareParts, contents, [other]] = await Promise.all([
+    productsByIds(product.similar, region, market),
+    productsByIds(product.accessories, region, market),
+    productsByIds(product.spareParts, region, market),
+    setContents(product, region, market),
+    productsByIds([product.id], OTHER_LANGUAGE_REGION[region], market),
+  ]);
   const category = product.groupId ? categoryPage(site, product.groupId) : undefined;
   return {
     kind: "product" as const, region, market,
+    seoHints: product.seo,
     canonical: product.url,
-    title: product.name,
+    title: product.seo.title ?? product.name,
     alternates: alternatesOf(region, product.path, other?.path),
-    product, similar,
+    product, contents, similar, accessories, spareParts,
     groupName: product.groupId ? groups.get(product.groupId) : undefined,
     crumbs: [...breadcrumb(site, category).map(toCrumb), { url: product.url, title: product.name }],
   };
@@ -127,13 +135,15 @@ export default function PageRoute({ loaderData: data, actionData: posted }: Rout
     <>
       <title>{`${data.title} · ${text.siteName}`}</title>
       <link rel="canonical" href={data.seo.canonical} />
+      {data.seo.description && <meta name="description" content={data.seo.description} />}
+      {data.seo.robots && <meta name="robots" content={data.seo.robots} />}
       {data.seo.alternates.map((a) => <link key={a.hreflang} rel="alternate" hrefLang={a.hreflang} href={a.href} />)}
     </>
   );
   const crumbs = <Crumbs items={data.crumbs} label={text.breadcrumb} />;
   if (data.kind === "product") {
     const ctx: Ctx = { region: data.region, market: data.market, text, products: {}, targets: {}, images: {} };
-    return <>{head}{crumbs}<ProductDetail ctx={ctx} product={data.product} groupName={data.groupName} similar={data.similar} /></>;
+    return <>{head}{crumbs}<ProductDetail ctx={ctx} product={data.product} groupName={data.groupName} contents={data.contents} similar={data.similar} accessories={data.accessories} spareParts={data.spareParts} /></>;
   }
   const ctx: Ctx = { region: data.region, market: data.market, text, products: data.products, targets: data.targets, images: data.images };
   // `key`: another page starts a new range; `Range` shows its fetcher's answer for as long as it lives, not the loader's data.

@@ -7,8 +7,7 @@
     "dev": "react-router dev",
     "build": "react-router build",
     "start": "node server.js",
-    "typecheck": "react-router typegen && tsc",
-    "test": "playwright test"
+    "typecheck": "react-router typegen && tsc"
   },
   "engines": {
     "node": ">=22"
@@ -26,7 +25,6 @@
     "sharp": "^0.35.5"
   },
   "devDependencies": {
-    "@playwright/test": "^1.65.0",
     "@react-router/dev": "^8.5.1",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",

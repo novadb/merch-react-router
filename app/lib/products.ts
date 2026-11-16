@@ -1,18 +1,28 @@
 /** Products from the PIM as the site uses them, for server and browser: the type, search terms, facets and sorting. */
 import type { Image } from "./images";
 
+/** The sellable variant of a product: SKU, colour, stock and delivery time. */
+export type Article = {
+  id: number;
+  productId: number;
+  name: string;
+  sku: string;
+  /** A PIM object (`merchColor`) held by ID as a string: the value of its facet checkbox. Its name and swatch come with the labels (`text.value(id)`). */
+  color?: string;
+  /** Pieces in stock; 0 is sold out. */
+  stock: number;
+  deliveryDays?: number;
+};
+
 export type Product = {
   id: number;
   name: string;
   url: string;
   /** The URL without the region, e.g. `shop/t-shirts/we-build-value`. */
   path: string;
-  sku?: string;
-  /**
-   * Colour, materials and finishes are PIM objects (`merchColor`, `merchMaterial`, `merchFinish`), held by ID as a
-   * string: the value of their facet checkbox. Their names and swatches come with the labels (`text.value(id)`).
-   */
-  color?: string;
+  /** The released articles; a product that has none is shown as available, but no filter counts it. */
+  articles: Article[];
+  /** Materials and finishes are PIM objects (`merchMaterial`, `merchFinish`), held by ID as a string like an article's colour. */
   materials: string[];
   /** Cup volume in ml. */
   volume?: number;
@@ -21,14 +31,26 @@ export type Product = {
   pieces?: number;
   screenSize?: number;
   price?: number;
-  /** `false` is sold out; not set: shown as available, but not counted by the in-stock filter. */
-  inStock?: boolean;
   image?: Image;
   groupId?: number;
   descriptionHtml?: string;
+  /** Object IDs of products: similar ones, accessories and spare parts, as an editor ordered them. */
   similar: number[];
+  accessories: number[];
+  spareParts: number[];
+  /** The texts of the claims the product makes. */
+  claims: string[];
+  /** The rows of a set product: an article (by object ID) and how many of it. */
+  setItems: { articleId: number; quantity: number }[];
+  seo: { title?: string; description?: string; noIndex: boolean; noFollow: boolean };
   shopifyId?: string;
 };
+
+/** The colours of a product's articles, without repeats. */
+export const colorsOf = (p: Product): string[] => [...new Set(p.articles.flatMap((a) => a.color ?? []))];
+
+/** `false` is sold out (no article in stock); `undefined`: no article, shown as available, but not counted by the in-stock filter. */
+export const inStockOf = (p: Product): boolean | undefined => (p.articles.length ? p.articles.some((a) => a.stock > 0) : undefined);
 
 /** Removes the XHTML namespace the CMS stores with rich text. */
 export const cleanHtml = (html: string) => html.replace(/\sxmlns="[^"]*"/g, "");
@@ -95,7 +117,7 @@ function parseSelection(posted: URLSearchParams): Selection {
 type ListFacet = "group" | "color" | "material";
 type Facet = ListFacet | "stock" | "price";
 const facetValues = (p: Product, facet: ListFacet): string[] =>
-  ({ group: p.groupId ? [String(p.groupId)] : [], color: p.color ? [p.color] : [], material: p.materials })[facet];
+  ({ group: p.groupId ? [String(p.groupId)] : [], color: colorsOf(p), material: p.materials })[facet];
 
 /** Whether a product passes every selected facet except `skip` (so a facet's own counts stay open). */
 function passes(p: Product, s: Selection, skip?: Facet): boolean {
@@ -103,7 +125,7 @@ function passes(p: Product, s: Selection, skip?: Facet): boolean {
     skip === facet || !selected.length || facetValues(p, facet).some((v) => selected.includes(v));
   return (
     any("group", s.group.map(String)) && any("color", s.color) && any("material", s.material) &&
-    (skip === "stock" || !s.stock || p.inStock === true) &&
+    (skip === "stock" || !s.stock || inStockOf(p) === true) &&
     (skip === "price" || ((s.min === undefined || (p.price ?? 0) >= s.min) && (s.max === undefined || (p.price ?? Infinity) <= s.max)))
   );
 }
@@ -134,7 +156,7 @@ function applySelection(products: Product[], s: Selection, defaultSort: Sort): {
     group: count(products, s, "group", s.group.map(String)),
     color: count(products, s, "color", s.color),
     material: count(products, s, "material", s.material),
-    inStock: products.filter((p) => p.inStock && passes(p, s, "stock")).length,
+    inStock: products.filter((p) => inStockOf(p) && passes(p, s, "stock")).length,
     priceMin: prices.length ? Math.floor(Math.min(...prices)) : 0,
     priceMax: prices.length ? Math.ceil(Math.max(...prices)) : 0,
   };

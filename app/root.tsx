@@ -112,7 +112,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   const notFound = isRouteErrorResponse(error) && error.status === 404 && text;
   return (
     <section className="merchHero not-found">
-      {text && <title>{text.siteName}</title>}
+      {text && <title>{notFound ? `${text.notFound} · ${text.siteName}` : text.siteName}</title>}
       <h1 className="merchDisplay">{notFound ? text.notFound : "Error"}</h1>
       {notFound ? <p className="merchLead" dangerouslySetInnerHTML={text.notFoundText} /> : <p className="merchLead">Something went wrong while loading this page.</p>}
       <p className="merchCta"><Link to={root?.home.url ?? "/"}>{text?.home ?? "Home"}</Link></p>

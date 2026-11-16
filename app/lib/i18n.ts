@@ -1,7 +1,7 @@
 /** Regions, markets and the UI texts the site prints itself (labels from NovaDB, like the content). */
 import { useRouteLoaderData } from "react-router";
 import type { loader as rootLoader } from "../root"; // a type only: no cycle at run time
-import { PRODUCT } from "./schema";
+import { ARTICLE, PRODUCT } from "./schema";
 
 /**
  * A region is the first URL segment (`/de/…`, `/uk/…`, `/us/…`). It fixes the content language, the UI texts, the market
@@ -59,9 +59,9 @@ export type PimValue = { name?: string; hex?: string };
 
 /** UI text key → the product attribute whose name it is. */
 export const ATTRIBUTE_TEXT = {
-  group: PRODUCT.group, sku: PRODUCT.sku, colour: PRODUCT.color, material: PRODUCT.materials, price: PRODUCT.price,
-  availability: PRODUCT.inStock, volume: PRODUCT.cupVolume, finish: PRODUCT.finish, pieces: PRODUCT.pieces,
-  screenSize: PRODUCT.screenSize,
+  group: PRODUCT.group, sku: ARTICLE.number, colour: ARTICLE.color, material: PRODUCT.materials, price: PRODUCT.price,
+  availability: ARTICLE.stock, volume: PRODUCT.volume, finish: PRODUCT.finishes, pieces: PRODUCT.pieces,
+  screenSize: PRODUCT.screenSize, delivery: ARTICLE.deliveryDays,
 } as const;
 
 /** Plain texts: printed escaped. */
@@ -70,6 +70,7 @@ const PLAIN = [
   "search", "searchPlaceholder", "pagesFound", "products", "searchAll",
   "filter", "apply", "reset", "sort", "sortRelevance", "sortName", "sortPriceAsc", "sortPriceDesc",
   "inStock", "from", "to", "noResults", "showMore", "available", "soldOut", "similar",
+  "accessories", "spareParts", "claims", "setContents",
   "addToCart", "cart", "subtotal", "checkout", "cartEmpty", "cartNotice",
 ] as const;
 /** Texts that may carry inline HTML (links, emphasis): typed for `dangerouslySetInnerHTML` only, so no other use compiles. */

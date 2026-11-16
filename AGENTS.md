@@ -16,7 +16,7 @@ Non-goals: reading NovaDB in the browser, writes to NovaDB, a database or shared
 
 - Run: `npm run dev`. It needs the Delivery login in its environment (`NOVA_DELIVERY_URL`, `NOVA_DELIVERY_USER`, `NOVA_DELIVERY_PASSWORD`) and fails loudly without it.
 - `npm run typecheck` (typegen, then `tsc`), `npm run build`, `docker build .`
-- `npx playwright test` against a running site (`BASE_URL` selects the target, default `npm run start` on port 3000). Not the dev server: it has no `server.js`, so the redirect test fails there. CI leaves out the tests tagged `@shopify` (buy button, cart): run them locally.
+- The shared browser suite (Playwright, one project per demo; it lives outside this repository): in its folder `BASE_URL=http://localhost:3000 npx playwright test --project react-router` against a running site (`npm run start`). Not the dev server: it has no `server.js`, so the redirect test fails there. CI leaves out the tests tagged `@shopify` (buy button, cart): run them locally.
 - Local container (`localhost:4000`, podman): `uv run scripts/refresh-container.py` after every completed change; `--full` after a change to `package.json`, `package-lock.json` or `Dockerfile`.
 - Done means: typecheck and build pass, `docker build` succeeds, and the suite is green against the real Delivery API. "Should work" is not a result; report each gate with its output.
 - The suite asserts structure and data rules, not CMS copy. Its seed paths (e.g. `/uk/shop/t-shirts/we-build-value`) are CMS data: if one disappears, fix the test's path, not the app.
@@ -26,6 +26,7 @@ Non-goals: reading NovaDB in the browser, writes to NovaDB, a database or shared
 Before touching `app/lib/` or `app/components/Content.tsx` read `NOVADB.md`: the model and the Delivery API's concepts (identifiers, `lang`, `props`, variants, references, Visual Document, files, search). The wire protocol (routes, filter and sort grammar, paging) is in the product documentation it links. `README.md` lists which file does what.
 
 - Read-only, branch `merchDemo`.
+- Only products and articles in the workflow state "released" (`WORKFLOW_RELEASED`) are on the site, never an unfinished one. A product is the card, URL and page; SKU, colour, stock and delivery time come from its articles.
 - Every NovaDB name (branch, types, attributes, market variants) is an API identifier and stands only in `app/lib/schema.ts`. An unavoidable numeric ID goes there too, as a named constant.
 - A missing `props` key means unset or untranslated: omit it. Never fall back to another language or to `displayName`.
 - Never print `NOVA_DELIVERY_URL/USER/PASSWORD`. The token stays on the server: pictures go through the `/media` proxy.
@@ -49,7 +50,7 @@ Before touching `app/lib/` or `app/components/Content.tsx` read `NOVADB.md`: the
 - The range posts through a fetcher, never a navigation: a POST navigation would change history and scroll. Cards in a range are keyed by product: a card that stays keeps its element.
 - The region switch is a plain `<a>` (a document load): Shopify's cart takes the region's market when the page starts. CMS rich text links are document loads too.
 - `app/site.css`, `NOVADB.md` and everything in `public/` (`favicon.svg`, `robots.txt`, the fonts) are the same files in every port, kept identical from outside this repository: never adapt them to this stack. Only how they reach the browser is this demo's own (`?url` in `root.tsx`). `site.css` is also the CMS editor's stylesheet: keep its `@editor` markers, and between them nothing of the header, the range or the product page.
-- Page content is made from a closed set of components: a class `merch*` in content that is not in `COMPONENT_CLASSES` (`tests/site.spec.ts`) fails the suite. Compose, or follow the structure with CSS, before asking for a new one.
+- Page content is made from a closed set of components: a class `merch*` in content that is not in `COMPONENT_CLASSES` (in the shared suite) fails the suite. Compose, or follow the structure with CSS, before asking for a new one.
 - The shop is Shopify's own Buy Button and cart (`app/components/Shop.tsx`, the React form of the shared client script's Shopify part: change both together). What the shop can configure (prices per market, product titles, languages) is configured there, not in code. Without `SHOPIFY_DOMAIN` and `SHOPIFY_STOREFRONT_TOKEN` there are no buy buttons and no cart, silently: keep both in `.env`.
 
 ## Git

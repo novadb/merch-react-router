@@ -36,13 +36,14 @@ Production: `npm run build`, then `npm run start` (port 3000), or the `Dockerfil
 
 ## Test
 
-With the built site running (`npm run build`, `npm run start`): `npx playwright test`. The dev server lacks
-`server.js` and its redirects to one URL per page, so one test fails there. `BASE_URL=http://localhost:5000 npx playwright test`
-runs the same behaviour checks against another demo.
+The behaviour is checked by the shared browser suite of the Nova Merchandising demos (Playwright; not part of this
+repository: one project per demo). With the built site running (`npm run build`, `npm run start`), run in the suite's
+folder `BASE_URL=http://localhost:3000 npx playwright test --project react-router`. The dev server lacks `server.js` and
+its redirects to one URL per page, so one test fails there.
 
-Every pull request to `main` runs the same suite in CI (`azure-pipelines.yml`: typecheck, build, `docker build`,
-Playwright against the real Delivery API); the PR can only be completed when it is green. The tests tagged `@shopify`
-(buy button, cart) need the Shopify variables and are not run there: `npx playwright test --grep @shopify` runs only them locally.
+Every pull request to `main` is validated by the project's CI (typecheck, build, `docker build`, the same suite against
+the real Delivery API); the PR can only be completed when it is green. The tests tagged `@shopify`
+(buy button, cart) need the Shopify variables and are not run there: `--grep @shopify` runs only them locally.
 
 ## Where things are
 
@@ -55,7 +56,7 @@ Playwright against the real Delivery API); the PR can only be completed when it 
 | `app/lib/i18n.ts`, `i18n.server.ts` | regions (`de`, `uk`, `us`: content language, market, currency) and the UI texts; reading NovaDB's labels |
 | `app/lib/request.ts`, `seo.ts` | region and posted form fields of a request; canonical and hreflang URLs |
 | `app/lib/site.server.ts` | page tree, URLs from `merchPageUrlSegment` + parent page, category page of a group |
-| `app/lib/products.ts`, `products.server.ts` | the product type, full-text filter, facets (counted on the server), sorting; reading products |
+| `app/lib/products.ts`, `products.server.ts` | the product and article types, full-text filter, facets (counted on the server), sorting; reading released products with their articles, claims and set rows |
 | `app/lib/images.ts`, `images.server.ts` | picture URLs and their scaled variants (`srcset`); reading image objects |
 | `app/components/Content.tsx`, `Range.tsx`, `ProductDetail.tsx` | Visual Document renderer, product card, page teaser; the live range with its facets; the product page |
 | `app/components/SearchBox.tsx`, `Shop.tsx` | the search form with its typeahead; Shopify's buy button and cart |

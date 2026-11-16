@@ -3,7 +3,7 @@ import type { JSX, ReactNode } from "react";
 import { Link } from "react-router";
 import { formatPrice, type Region, type Market, type Texts } from "~/lib/i18n";
 import { srcSet } from "~/lib/images";
-import { cleanHtml, type Product } from "~/lib/products";
+import { cleanHtml, colorsOf, inStockOf, type Product } from "~/lib/products";
 import type { VNode } from "~/lib/site.server";
 
 /** Everything a link or teaser in content can point at: pages and products, by object ID. */
@@ -112,11 +112,11 @@ function ContentNode({ node, ctx, sizes = CONTENT_SIZES }: { node: VNode; ctx: C
 /** `sizes` of a card's picture: also the picture `preloadPictures` (`Range.tsx`) loads ahead. */
 export const CARD_SIZES = "(min-width: 700px) 320px, 100vw";
 
-// Class names and HTML are read outside this file (`tests/site.spec.ts` selects `.product-card__*`) and copied by the other demos: change them only together.
+// Class names and HTML are read outside this file (the shared suite selects `.product-card__*`) and copied by the other demos: change them only together.
 /** `eager`: the picture loads at once, not when it comes near the window (a range's first cards after a change, preloaded). */
 export function ProductCard({ product: p, ctx, eager = false }: { product: Product; ctx: Ctx; eager?: boolean }) {
   const details = [
-    p.color && ctx.text.value(p.color), p.volume && `${p.volume} ml`, p.screenSize && `${p.screenSize}″`,
+    ...colorsOf(p).map(ctx.text.value), p.volume && `${p.volume} ml`, p.screenSize && `${p.screenSize}″`,
     ...p.materials.map(ctx.text.value), ...p.finishes.map(ctx.text.value),
     p.pieces && p.pieces > 1 && ctx.text.pieceCount(p.pieces),
   ].filter(Boolean);
@@ -130,7 +130,7 @@ export function ProductCard({ product: p, ctx, eager = false }: { product: Produ
         <p className="product-card__meta">{details.join(" · ")}</p>
         <p className="product-card__price">
           {formatPrice(p.price, ctx.market, ctx.region)}
-          {p.inStock === false && <span className="badge badge--muted">{ctx.text.soldOut}</span>}
+          {inStockOf(p) === false && <span className="badge badge--muted">{ctx.text.soldOut}</span>}
         </p>
       </Link>
     </article>
