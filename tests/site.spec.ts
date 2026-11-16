@@ -452,6 +452,20 @@ test("a picture in a chapter is shown as it is, never cropped: one straight in t
   expect(await wide.getAttribute("srcset")).toMatch(/\/media\/[0-9a-f-]{32,36}\/1600\.[a-z0-9]+\.webp 1600w/);
 });
 
+test("the first picture in a page's content loads eagerly with high priority, every other content picture lazily", async ({ page }) => {
+  for (const path of ["/de/", "/us/behind-this-shop"]) {
+    await page.goto(path);
+    const pictures = await page.locator("main img:not(.product-card img, .page-teaser img)").all();
+    expect(pictures.length, path).toBeGreaterThan(0);
+    expect(await pictures[0].getAttribute("loading"), path).toBe("eager");
+    expect(await pictures[0].getAttribute("fetchpriority"), path).toBe("high");
+    for (const picture of pictures.slice(1)) {
+      expect(await picture.getAttribute("loading"), path).toBe("lazy");
+      expect(await picture.getAttribute("fetchpriority"), path).toBeNull();
+    }
+  }
+});
+
 test("every colour swatch is painted with the colour's hex from the PIM", async ({ page }) => {
   await page.goto("/uk/shop");
   const swatches = page.locator("#facets .swatch");

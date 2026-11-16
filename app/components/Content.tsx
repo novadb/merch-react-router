@@ -8,8 +8,11 @@ import type { VNode } from "~/lib/site.server";
 
 /** Everything a link or teaser in content can point at: pages and products, by object ID. */
 export type Target = { url: string; title: string; image?: string };
-/** `images`: the picture URL (`/media/{md5}/original{ext}`) of each image object the document embeds, by object ID. */
-export type Ctx = { region: Region; market: Market; text: Texts; products: Record<number, Product>; targets: Record<number, Target>; images: Record<number, string> };
+/**
+ * `images`: the picture URL (`/media/{md5}/original{ext}`) of each image object the document embeds, by object ID.
+ * `firstImage`: the first picture of the document, which `VisualDocument` sets; it loads at once, as the others do not.
+ */
+export type Ctx = { region: Region; market: Market; text: Texts; products: Record<number, Product>; targets: Record<number, Target>; images: Record<number, string>; firstImage?: VNode };
 
 /** Object IDs a document refers to: embedded objects and links inside rich text. */
 export function referencedIds(node: VNode | undefined, into = new Set<number>()): Set<number> {
@@ -26,6 +29,15 @@ export function imageIds(node: VNode | undefined, into = new Set<number>()): Set
   if (node.objectId && node.type === "image") into.add(node.objectId);
   node.children?.forEach((child) => imageIds(child, into));
   return into;
+}
+
+/** The first image node in document order that `ContentNode` renders. */
+function firstImage(node: VNode, images: Ctx["images"]): VNode | undefined {
+  if (node.type === "image" && node.objectId && images[node.objectId]) return node;
+  for (const child of node.children ?? []) {
+    const found = firstImage(child, images);
+    if (found) return found;
+  }
 }
 
 /** Turns CMS links (`object?branch=…&objectId=N`) into site URLs and drops editor-only attributes. */
@@ -52,6 +64,8 @@ export function Crumbs({ items, label }: { items: Target[]; label: string }) {
 /** Renders the document; `afterFirst` (the live range) goes right after its first component, the hero. */
 export function VisualDocument({ node, ctx, afterFirst }: { node?: VNode; ctx: Ctx; afterFirst?: ReactNode }) {
   if (!node) return <>{afterFirst}</>;
+  // Derived from the tree on every render, so server and browser agree; a flag set while rendering would flip on a second render.
+  ctx = { ...ctx, firstImage: firstImage(node, ctx.images) };
   const [first, ...rest] = node.children ?? [];
   const Tag = (node.element || "div") as keyof JSX.IntrinsicElements;
   // The root node (`visualComponentRoot`) comes from the CMS as `<div class="main">`: the `.main` of site.css.
@@ -76,8 +90,12 @@ function ContentNode({ node, ctx, sizes = CONTENT_SIZES }: { node: VNode; ctx: C
       const childSizes = node.class === "merchChapter" ? CHAPTER_SIZES : node.class === "imageWithCaption" ? sizes : CONTENT_SIZES;
       return <Tag className={node.class}>{node.children?.map((child, i) => <ContentNode key={i} node={child} ctx={ctx} sizes={childSizes} />)}</Tag>;
     }
-    case "image":
-      return node.objectId && ctx.images[node.objectId] ? <img className={node.class} src={ctx.images[node.objectId]} srcSet={srcSet(ctx.images[node.objectId])} sizes={sizes} alt="" loading="lazy" /> : null;
+    case "image": {
+      if (!node.objectId || !ctx.images[node.objectId]) return null;
+      // The first picture is on screen at once (the hero): lazy loading would delay the largest contentful paint.
+      const first = node === ctx.firstImage;
+      return <img className={node.class} src={ctx.images[node.objectId]} srcSet={srcSet(ctx.images[node.objectId])} sizes={sizes} alt="" loading={first ? "eager" : "lazy"} fetchPriority={first ? "high" : undefined} />;
+    }
     case "object": {
       // Like the CMS, which wraps what an object component renders in the component's own element: the editor's
       // stylesheet (built from site.css) then matches the same DOM as the site.
