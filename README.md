@@ -1,5 +1,14 @@
 # Nova Merchandising — React Router SSR (reference)
 
+**Live:** <https://react-router.merch.novadb.com/>: this repository's `main`, running against NovaDB. `/` picks the
+region by browser language (`/de/`, `/uk/`, `/us/`); the checkout is in Shopify's test mode.
+
+The same shop in other stacks: ASP.NET Core Blazor ([live](https://blazor-dotnet.merch.novadb.com/),
+[source](https://github.com/novadb/merch-blazor-dotnet)) · Razor Pages + htmx
+([live](https://razor-htmx.merch.novadb.com/), [source](https://github.com/novadb/merch-razor-htmx)) · Nuxt
+([live](https://vue-nuxt.merch.novadb.com/), [source](https://github.com/novadb/merch-vue-nuxt)) · Astro
+([live](https://astro.merch.novadb.com/), [source](https://github.com/novadb/merch-astro))
+
 The reference implementation of the demo site: React Router 8 in framework mode, server-rendered, TypeScript.
 Every page, product, price and picture is read live from NovaDB's Delivery API (branch `merchDemo`). All other demos
 copy its HTML structure and share `app/site.css` unchanged.
