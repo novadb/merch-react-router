@@ -46,8 +46,8 @@ steps:
   - script: docker build -t merch-react-router:$(Build.BuildId) .
     displayName: Build the Docker image (no push)
 
-  - script: npx playwright install --with-deps firefox
-    displayName: Install Firefox for Playwright
+  - script: npx playwright install --with-deps chromium
+    displayName: Install Chromium for Playwright
 
   - script: nohup npm start > server.log 2>&1 &
     displayName: Start the site
@@ -63,7 +63,7 @@ steps:
   # No retries: a red test is a finding. The paths the tests use are CMS data (see AGENTS.md, Gates). The only tests left
   # out are the ones tagged @shopify (decision of the owner: Shopify is tested locally until further notice).
   - script: npx playwright test --grep-invert @shopify --reporter=line,junit
-    displayName: Playwright suite (Firefox, without @shopify)
+    displayName: Playwright suite (Chromium, without @shopify)
     env:
       BASE_URL: http://localhost:$(PORT)
       PLAYWRIGHT_JUNIT_OUTPUT_FILE: $(System.DefaultWorkingDirectory)/test-results/junit.xml
@@ -74,7 +74,7 @@ steps:
     inputs:
       testResultsFormat: JUnit
       testResultsFiles: test-results/junit.xml
-      testRunTitle: Playwright (Firefox)
+      testRunTitle: Playwright (Chromium)
       failTaskOnFailedTests: false  # the Playwright step already fails the run
 
   - task: CopyFiles@2

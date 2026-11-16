@@ -27,7 +27,7 @@ Production: `npm run build`, then `npm run start` (port 3000), or the `Dockerfil
 
 ## Test
 
-With the built site running (`npm run build`, `npm run start`): `npx playwright test` (Firefox). The dev server lacks
+With the built site running (`npm run build`, `npm run start`): `npx playwright test`. The dev server lacks
 `server.js` and its redirects to one URL per page, so one test fails there. `BASE_URL=http://localhost:5000 npx playwright test`
 runs the same behaviour checks against another demo.
 
