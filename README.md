@@ -7,7 +7,8 @@ The same shop in other stacks: ASP.NET Core Blazor ([live](https://blazor-dotnet
 [source](https://github.com/novadb/merch-blazor-dotnet)) · Razor Pages + htmx
 ([live](https://razor-htmx.merch.novadb.com/), [source](https://github.com/novadb/merch-razor-htmx)) · Nuxt
 ([live](https://vue-nuxt.merch.novadb.com/), [source](https://github.com/novadb/merch-vue-nuxt)) · Astro
-([live](https://astro.merch.novadb.com/), [source](https://github.com/novadb/merch-astro))
+([live](https://astro.merch.novadb.com/), [source](https://github.com/novadb/merch-astro)) ·
+Remix 3 ([live](https://remix.merch.novadb.com/), [source](https://github.com/novadb/merch-remix))
 
 The reference implementation of the demo site: React Router 8 in framework mode, server-rendered, TypeScript.
 Every page, product, price and picture is read live from NovaDB's Delivery API (branch `merchDemo`). All other demos
