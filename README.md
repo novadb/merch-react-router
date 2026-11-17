@@ -13,11 +13,19 @@ The reference implementation of the demo site: React Router 8 in framework mode,
 Every page, product, price and picture is read live from NovaDB's Delivery API (branch `merchDemo`). All other demos
 copy its HTML structure and share `app/site.css` unchanged.
 
-Every page is rendered on the server, then React hydrates it. Everything works without JavaScript; in the browser links
-navigate without a page load (`<Link>`), the range's filters apply in place (a fetcher posts the form to the route's
-`action`, no page load, the URL stays), "Show more" loads while scrolling, the search box suggests while typing (a
-fetcher on `/api/suggest`), and Shopify's own buy button and cart appear in the site's colours. Data only ever comes
-from the server: the loaders and actions read NovaDB, the browser never does.
+## What this demo shows, and what it does not
+
+It shows **full-stack React the way React Router writes it**: a route is a module whose `loader` reads NovaDB and whose
+component renders the data, and the state of a filtered view is the address. Filters, sorting, "Show more" and search
+are GET forms: their fields are the query string, which the `loader` reads (`app/lib/request.ts`), so a filtered view can
+be shared and Back returns to the one before. The page is rendered on the server, then React hydrates it: links navigate
+without a page load (`<Link>`), a filter is a navigation to the same page with another query (cards that stay keep their
+element), "Show more" loads while scrolling and replaces the history entry, the search box suggests while typing (a
+fetcher on the resource route `/api/suggest`, JSON), and Shopify's own buy button and cart appear in the site's colours.
+Everything works without JavaScript. Data only ever comes from the server: the loaders read NovaDB, the browser never does.
+
+It does not use **React Server Components** (in React Router 8 still `unstable_`) and no data library such as React
+Query: the loader is the place where data is read. It is the reference: the other demos copy its HTML, not its code.
 
 ## Run
 
@@ -54,7 +62,7 @@ the real Delivery API); the PR can only be completed when it is green. The tests
 | `app/lib/*.server.ts` | what reads NovaDB, on the server only (React Router keeps `.server` modules out of the browser) |
 | `app/lib/delivery.server.ts` | Delivery API client: Basic auth from the environment, 60 s cache |
 | `app/lib/i18n.ts`, `i18n.server.ts` | regions (`de`, `uk`, `us`: content language, market, currency) and the UI texts; reading NovaDB's labels |
-| `app/lib/request.ts`, `seo.ts` | region and posted form fields of a request; canonical and hreflang URLs |
+| `app/lib/request.ts`, `seo.ts` | region and query string of a request; canonical and hreflang URLs |
 | `app/lib/site.server.ts` | page tree, URLs from `merchPageUrlSegment` + parent page, category page of a group |
 | `app/lib/products.ts`, `products.server.ts` | the product and article types, full-text filter, facets (counted on the server), sorting; reading released products with their articles, claims and set rows |
 | `app/lib/images.ts`, `images.server.ts` | picture URLs and their scaled variants (`srcset`); reading image objects |

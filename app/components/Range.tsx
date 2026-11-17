@@ -1,18 +1,19 @@
 /**
- * A live product range: facet filters as a POST form (the URL stays the page's), sorting and the product grid.
- * Without JavaScript every change is a form the browser posts, answered by the page. In the browser a fetcher posts the
- * same form to the route's action and the range shows its answer in place: no page load, the scroll position and the
- * focused control stay, a card that stays is the same element. "Show more" clicks itself as it comes near the window.
+ * A live product range: facet filters as a GET form (its fields are the page's query string), sorting and the product
+ * grid. Without JavaScript every change is a form the browser submits, answered by the page. In the browser the same
+ * fields go to the router as a navigation to the page's address with that query: the loader answers, no page load, the
+ * scroll position and the focused control stay, a card that stays is the same element. "Show more" clicks itself as it
+ * comes near the window and replaces the history entry, so Back leaves the range instead of stepping through batches.
  */
 import { useEffect, useLayoutEffect, useRef, type ChangeEvent, type FormEvent } from "react";
-import { useFetcher } from "react-router";
+import { useLocation, useNavigation, useSubmit } from "react-router";
 import { srcSet } from "~/lib/images";
 import { RANGE_BATCH, SORTS, type FacetValue, type Product, type RangeData, type Sort } from "~/lib/products";
 import { CARD_SIZES, ProductCard, type Ctx } from "./Content";
 
 type Props = {
   ctx: Ctx;
-  /** The range as the page was rendered with it; the fetcher's answers replace it. */
+  /** The range for the page's query string. */
   range: RangeData;
   groupNames: Record<number, string>;
   /** Hidden fields that must survive a filter change, e.g. the search query. */
@@ -21,8 +22,7 @@ type Props = {
 
 export function Range({ ctx, range, groupNames, keep = {} }: Props) {
   const { text } = ctx;
-  const fetcher = useFetcher<{ range: RangeData }>();
-  const { items, total, facets, selection, defaultSort } = fetcher.data?.range ?? range;
+  const { items, total, facets, selection, defaultSort } = range;
   const sorts = SORTS.filter((s) => s !== "relevance" || defaultSort === "relevance");
   const sortLabel: Record<Sort, string> = {
     relevance: text.sortRelevance, name: text.sortName, "price-asc": text.sortPriceAsc, "price-desc": text.sortPriceDesc,
@@ -31,31 +31,44 @@ export function Range({ ctx, range, groupNames, keep = {} }: Props) {
   const section = useRef<HTMLElement>(null);
   const form = useRef<HTMLFormElement>(null);
   const more = useRef<HTMLButtonElement>(null);
-  const busy = fetcher.state !== "idle";
-  const appending = busy && fetcher.formData?.has("shown"); // only "Show more" posts `shown`
+  const submit = useSubmit();
+  const { pathname } = useLocation();
+  const navigation = useNavigation();
+  // A navigation to this page's own address is a change of this range: another query, not another page.
+  const target = navigation.state === "loading" && navigation.location.pathname === pathname ? new URLSearchParams(navigation.location.search) : undefined;
+  const busy = Boolean(target);
+  const appending = target?.has("shown"); // only "Show more" sends `shown`
+  // The pictures of the cards that an answer brings are loaded before it is shown (`preloadPictures`): load them first.
+  const first = useRef(range);
 
   /**
-   * Posts the form with the control that submitted it (its name and value travel along, as in the browser's own submit).
+   * Sends the form's fields, as the browser's own submit would, as the query of this page. The fields that say nothing
+   * (empty, or the default sorting) stay out of the address; "Reset" sends only what must survive it (`keep`).
    * `flushSync`: the range is marked busy at once, not in a transition that the answer may overtake.
    */
-  const post = (submitter: HTMLElement | null) => fetcher.submit((submitter as HTMLButtonElement | null) ?? form.current, { method: "post", flushSync: true });
+  function send(submitter: HTMLButtonElement | null) {
+    const fields = submitter?.name === "reset" ? Object.entries(keep) : [...new FormData(form.current!, submitter)];
+    const query = new URLSearchParams();
+    for (const [name, value] of fields) if (value && !(name === "sort" && value === defaultSort)) query.append(name, String(value));
+    submit(query, { method: "get", action: pathname, preventScrollReset: true, replace: Boolean(submitter) && submitter === more.current, flushSync: true });
+  }
 
   function onChange(event: ChangeEvent<HTMLElement>) {
     const control = event.target as HTMLInputElement | HTMLSelectElement;
     // Also the sort <select form="facets"> outside the form. A price applies on Enter or "Apply", not per keystroke.
-    if (control.form && control.form === form.current && control.type !== "number" && control.form.reportValidity()) post(null);
+    if (control.form && control.form === form.current && control.type !== "number" && control.form.reportValidity()) send(null);
   }
 
   /** A keyboard user who pressed "Show more" goes on with the first new card: its index. */
   const focusFrom = useRef<number>(undefined);
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
     if (submitter === more.current) {
       if (busy) return; // a filter change is running: its answer comes first
       if (document.activeElement === submitter) focusFrom.current = items.length;
     }
-    post(submitter);
+    send(submitter);
   }
 
   // "Show more" clicks itself within 600 px of the window. Observed anew after every answer: an observer reports a
@@ -79,7 +92,7 @@ export function Range({ ctx, range, groupNames, keep = {} }: Props) {
 
   const shownFor = useRef(selection);
   useLayoutEffect(() => {
-    if (shownFor.current === selection) return; // the first render: nothing was posted yet
+    if (shownFor.current === selection) return; // the first render: nothing was asked yet
     shownFor.current = selection;
     // The fields are the browser's (React sets only their defaults): show what the answer was computed for, e.g. after
     // "Reset". Called on the prototype: the button `name="reset"` hides the form's own `reset`.
@@ -97,7 +110,7 @@ export function Range({ ctx, range, groupNames, keep = {} }: Props) {
   return (
     <section className="range" id="range" aria-label={text.filter} aria-busy={busy && !appending ? true : undefined} onChange={onChange} ref={section}>
       {/* `#range`: without JavaScript the answer opens at the range. */}
-      <form className="facets" id="facets" method="post" action="#range" onSubmit={onSubmit} ref={form}>
+      <form className="facets" id="facets" method="get" action="#range" onSubmit={onSubmit} ref={form}>
         {Object.entries(keep).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}
         {facets.group.length > 1 && (
           <FacetGroup legend={text.group} name="group" values={facets.group.filter((v) => groupNames[Number(v.value)])} labelOf={(v) => groupNames[Number(v)]} />
@@ -139,11 +152,11 @@ export function Range({ ctx, range, groupNames, keep = {} }: Props) {
           </label>
         </div>
         {total ? (
-          <div className="grid" aria-busy={appending ? true : undefined}>{items.map((p, i) => <ProductCard key={p.id} product={p} ctx={ctx} eager={Boolean(fetcher.data) && i < RANGE_BATCH} />)}</div>
+          <div className="grid" aria-busy={appending ? true : undefined}>{items.map((p, i) => <ProductCard key={p.id} product={p} ctx={ctx} eager={range !== first.current && i < RANGE_BATCH} />)}</div>
         ) : (
           <p className="range__empty">{text.noResults}</p>
         )}
-        {/* Posts the filters again with one batch more. */}
+        {/* Sends the filters again with one batch more. */}
         {total > items.length && (
           <button type="submit" form="facets" name="shown" value={selection.shown + RANGE_BATCH} className="button button--ghost range__more" ref={more}>
             {text.showMore}

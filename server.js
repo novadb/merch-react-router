@@ -8,7 +8,6 @@ import * as build from "./build/server/index.js";
 const app = express();
 app.disable("x-powered-by");
 // TLS ends at the ingress: believe its X-Forwarded-Proto and -Host, so that request.url is the public https URL.
-// React Router compares it with the Origin header of a posted form and answers 400 when they differ.
 // Remove the line where the site is reached directly, without a proxy: a client could then forge those headers.
 app.set("trust proxy", true);
 app.use(compression());

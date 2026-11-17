@@ -1,6 +1,5 @@
-/** `/{region}/search`: full-text search over products (with facets) and pages; the query is the posted field `q`. */
-import { useEffect } from "react";
-import { Link, type ShouldRevalidateFunctionArgs } from "react-router";
+/** `/{region}/search`: full-text search over products (with facets) and pages; the query is the parameter `q`. */
+import { Link } from "react-router";
 import type { Route } from "./+types/search";
 import type { Ctx } from "~/components/Content";
 import { preloadPictures, Range } from "~/components/Range";
@@ -8,14 +7,14 @@ import { SearchBox } from "~/components/SearchBox";
 import { MARKET, REGIONS, useText, type Region } from "~/lib/i18n";
 import { rangeOf, searchFilter, type Sort } from "~/lib/products";
 import { loadProducts } from "~/lib/products.server";
-import { formOf, regionOf } from "~/lib/request";
+import { queryOf, regionOf } from "~/lib/request";
 import { PRODUCT_SEARCH_FIELDS } from "~/lib/schema";
 import { loadGroups, searchPages } from "~/lib/site.server";
 
-/** The search for the posted fields: `q`, and the range's facets and sorting. Opened without a query, the page lists every product. */
-async function searchData(region: Region, form: URLSearchParams) {
+/** The search for the query's fields: `q`, and the range's facets and sorting. Opened without a query, the page lists every product. */
+async function searchData(region: Region, query: URLSearchParams) {
   const market = MARKET[region];
-  const q = (form.get("q") ?? "").trim();
+  const q = (query.get("q") ?? "").trim();
   const productFilter = searchFilter(q, PRODUCT_SEARCH_FIELDS);
   const [products, pages, groups] = await Promise.all([
     loadProducts(region, market, productFilter, productFilter ? "$score" : undefined),
@@ -27,36 +26,23 @@ async function searchData(region: Region, form: URLSearchParams) {
   return {
     region, market, q,
     alternates,
-    range: rangeOf(products, form, defaultSort),
+    range: rangeOf(products, query, defaultSort),
     pages: pages.map((p) => ({ url: p.url, title: p.title })),
     groupNames: Object.fromEntries(groups),
   };
 }
 
-export const loader = ({ params }: Route.LoaderArgs) => searchData(regionOf(params.region), new URLSearchParams());
+export const loader = ({ params, request }: Route.LoaderArgs) => searchData(regionOf(params.region), queryOf(request));
 
-/** A search form, or the range form of the results (which carries `q` along), posts here. */
-export const action = async ({ params, request }: Route.ActionArgs) => searchData(regionOf(params.region), await formOf(request));
-
-/** In the browser the pictures of the answer's first cards are loaded before it is shown: none pops in. */
-export async function clientAction({ serverAction }: Route.ClientActionArgs) {
-  const answer = await serverAction();
-  await preloadPictures(answer.range.items);
-  return answer;
+/** A new search, filter, sorting or "Show more" on the page in view: the pictures of the first cards load before the answer is shown (as in `page.tsx`). */
+export async function clientLoader({ request, serverLoader }: Route.ClientLoaderArgs) {
+  const data = await serverLoader();
+  if (new URL(request.url).pathname === location.pathname) await preloadPictures(data.range.items);
+  return data;
 }
 
-/** After a search the answer is the page: there is nothing to load again. */
-export const shouldRevalidate = ({ formMethod, defaultShouldRevalidate }: ShouldRevalidateFunctionArgs) => !formMethod && defaultShouldRevalidate;
-
-export default function SearchRoute({ loaderData, actionData }: Route.ComponentProps) {
+export default function SearchRoute({ loaderData: data }: Route.ComponentProps) {
   const text = useText();
-  const data = actionData ?? loaderData;
-  // A search starts at the top of its results. React Router keeps the scroll position after a posted form (it is
-  // usually a change to the page in view), and every search is one. Not for the page as opened: back and forward
-  // restore its position.
-  useEffect(() => {
-    if (actionData) scrollTo({ top: 0, behavior: "instant" });
-  }, [actionData]);
   const ctx: Ctx = { region: data.region, market: data.market, text, products: {}, targets: {}, images: {} };
   return (
     <>
@@ -65,7 +51,7 @@ export default function SearchRoute({ loaderData, actionData }: Route.ComponentP
       <section className="merchHero merchHero--compact">
         <p className="merchKicker">{text.search}</p>
         <h1 className="merchDisplay">{text.searchTitle(data.q)}</h1>
-        {/* `key`: a new search remounts the form, so its field shows the query of the answer (a default value is read once). */}
+        {/* `key`: a new search remounts the form, so its field shows the query of the page (a default value is read once). */}
         <SearchBox key={data.q} large query={data.q} />
         {data.pages.length > 0 && (
           <nav className="search-pages" aria-label={text.pagesFound}>

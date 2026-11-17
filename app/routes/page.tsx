@@ -1,5 +1,4 @@
 /** `/{region}/{path}`: a CMS page (with its live product range) or a product from the PIM. */
-import type { ShouldRevalidateFunctionArgs } from "react-router";
 import type { Route } from "./+types/page";
 import { Crumbs, imageIds, referencedIds, VisualDocument, type Ctx, type Target } from "~/components/Content";
 import { ProductDetail } from "~/components/ProductDetail";
@@ -9,7 +8,7 @@ import { imagesByIds } from "~/lib/images.server";
 import { alternatesOf, MARKET, OTHER_LANGUAGE_REGION, useText, type Market, type Region } from "~/lib/i18n";
 import { rangeOf, type Product } from "~/lib/products";
 import { loadProducts, productByPath, productsByIds, setContents } from "~/lib/products.server";
-import { formOf, regionOf, notFound } from "~/lib/request";
+import { notFound, queryOf, regionOf } from "~/lib/request";
 import { PRODUCT } from "~/lib/schema";
 import { seoOf } from "~/lib/seo";
 import { breadcrumb, categoryPage, loadGroups, loadSite, type Page, type Site } from "~/lib/site.server";
@@ -43,19 +42,19 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const path = params["*"].replace(/^\/+|\/+$/g, "");
   const [site, groups] = await Promise.all([loadSite(region), loadGroups(region)]);
   const page = site.byPath.get(path);
-  const data = page ? await pageData(site, page, groups, region, market)
+  const data = page ? await pageData(site, page, groups, region, market, queryOf(request))
     : await productData(site, groups, region, market, path);
   return { ...data, seo: seoOf(request, data.canonical, data.alternates, data.seoHints) };
 }
 
-/** The live range of a category page: the products of its groups; null for a page without one. */
-async function pageRange(page: Page, region: Region, form: URLSearchParams) {
+/** The live range of a category page: the products of its groups, for the filters in the query; null for a page without one. */
+async function pageRange(page: Page, region: Region, query: URLSearchParams) {
   if (!page.groupRefs.length) return null;
   const products = await loadProducts(region, MARKET[region], `${PRODUCT.group} = ${page.groupRefs.join(", ")}`);
-  return products.length ? rangeOf(products, form, "name") : null;
+  return products.length ? rangeOf(products, query, "name") : null;
 }
 
-async function pageData(site: Site, page: Page, groups: Map<number, string>, region: Region, market: Market) {
+async function pageData(site: Site, page: Page, groups: Map<number, string>, region: Region, market: Market, query: URLSearchParams) {
   // An ID the content refers to is a page of the site, else a product.
   const refs = [...referencedIds(page.content)];
   const linked = refs.flatMap((ref) => site.pages.get(ref) ?? []);
@@ -64,7 +63,7 @@ async function pageData(site: Site, page: Page, groups: Map<number, string>, reg
   // The other language's page tree is for the hreflang links of a page; a product has no use for it.
   const [embedded, range, images, otherSite] = await Promise.all([
     productsByIds(refs.filter((ref) => !site.pages.has(ref)), region, market),
-    pageRange(page, region, new URLSearchParams()),
+    pageRange(page, region, query),
     imagesByIds([...wantedImages]),
     loadSite(OTHER_LANGUAGE_REGION[region]),
   ]);
@@ -107,28 +106,16 @@ async function productData(site: Site, groups: Map<number, string>, region: Regi
 }
 
 /**
- * The range form (facets, sorting, "Show more") posts to the page itself and gets the range for its fields. Without
- * JavaScript the browser posts it and React Router renders the page with this answer; in the browser the range's fetcher
- * posts it, and the page stays as it is.
+ * A filter, sorting or "Show more" changes the query of the page in view: the pictures of the first cards of the answer
+ * are loaded before it is shown, so none pops in. Any other navigation shows its page at once.
  */
-export async function action({ params, request }: Route.ActionArgs) {
-  const region = regionOf(params.region);
-  const page = (await loadSite(region)).byPath.get(params["*"].replace(/^\/+|\/+$/g, "")) ?? notFound();
-  return { range: (await pageRange(page, region, await formOf(request))) ?? notFound() };
+export async function clientLoader({ request, serverLoader }: Route.ClientLoaderArgs) {
+  const data = await serverLoader();
+  if (data.kind === "page" && data.range && new URL(request.url).pathname === location.pathname) await preloadPictures(data.range.items);
+  return data;
 }
 
-/** In the browser the pictures of the answer's first cards are loaded before it is shown: none pops in. */
-export async function clientAction({ serverAction }: Route.ClientActionArgs) {
-  const answer = await serverAction();
-  await preloadPictures(answer.range.items);
-  return answer;
-}
-
-/** A posted range changes the range only: the page around it is not loaded again. */
-export const shouldRevalidate = ({ formMethod, defaultShouldRevalidate }: ShouldRevalidateFunctionArgs) => !formMethod && defaultShouldRevalidate;
-
-// `posted`: the answer to the range form, posted without JavaScript.
-export default function PageRoute({ loaderData: data, actionData: posted }: Route.ComponentProps) {
+export default function PageRoute({ loaderData: data }: Route.ComponentProps) {
   const text = useText();
   // React 19 moves <title> and <link> from anywhere in the tree into <head>.
   const head = (
@@ -146,7 +133,7 @@ export default function PageRoute({ loaderData: data, actionData: posted }: Rout
     return <>{head}{crumbs}<ProductDetail ctx={ctx} product={data.product} groupName={data.groupName} contents={data.contents} similar={data.similar} accessories={data.accessories} spareParts={data.spareParts} /></>;
   }
   const ctx: Ctx = { region: data.region, market: data.market, text, products: data.products, targets: data.targets, images: data.images };
-  // `key`: another page starts a new range; `Range` shows its fetcher's answer for as long as it lives, not the loader's data.
-  const range = data.range && <Range key={data.canonical} ctx={ctx} range={posted?.range ?? data.range} groupNames={data.groupNames} />;
+  // `key`: another page starts a new range.
+  const range = data.range && <Range key={data.canonical} ctx={ctx} range={data.range} groupNames={data.groupNames} />;
   return <>{head}{crumbs}<VisualDocument node={data.content} ctx={ctx} afterFirst={range} /></>;
 }

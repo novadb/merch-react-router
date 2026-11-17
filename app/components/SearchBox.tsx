@@ -1,6 +1,6 @@
 /**
- * The search form: a POST to /{region}/search, the query in the field `q`. In the browser the input becomes an ARIA
- * combobox over POST /api/suggest (products and pages while typing, keys ↑ ↓ Enter Esc); without JavaScript it is a plain form.
+ * The search form: a GET to /{region}/search, the query in the field `q`. In the browser the input becomes an ARIA
+ * combobox over GET /api/suggest (products and pages while typing, keys ↑ ↓ Enter Esc); without JavaScript it is a plain form.
  */
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { Form, useFetcher, useNavigate, useRouteLoaderData } from "react-router";
@@ -10,7 +10,7 @@ import type { Suggestions } from "~/routes/suggest";
 
 const SUGGEST = "/api/suggest";
 
-/** `large`: the search page's own form, with a button and the query it was posted with. */
+/** `large`: the search page's own form, with a button and the query it shows. */
 export function SearchBox({ large = false, query }: { large?: boolean; query?: string }) {
   const text = useText();
   const region = useRouteLoaderData<typeof rootLoader>("root")!.region;
@@ -50,7 +50,7 @@ export function SearchBox({ large = false, query }: { large?: boolean; query?: s
     timer.current = setTimeout(() => {
       setQ(typed);
       setActive(-1);
-      fetcher.submit({ lang: region, q: typed }, { method: "post", action: SUGGEST }); // POST: no URL carries a query string
+      fetcher.load(`${SUGGEST}?${new URLSearchParams({ lang: region, q: typed })}`);
     }, 150);
   }
 
@@ -79,7 +79,7 @@ export function SearchBox({ large = false, query }: { large?: boolean; query?: s
   );
 
   return (
-    <Form className={large ? "search search--large" : "search"} role="search" method="post" action={`/${region}/search`} ref={form}>
+    <Form className={large ? "search search--large" : "search"} role="search" method="get" action={`/${region}/search`} ref={form}>
       <input type="search" name="q" defaultValue={query} placeholder={text.searchPlaceholder} aria-label={text.search} autoComplete="off"
         {...(ready && { role: "combobox", "aria-controls": listId, "aria-autocomplete": "list", "aria-expanded": open })}
         aria-activedescendant={active >= 0 ? optionId(active) : undefined}

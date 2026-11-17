@@ -6,11 +6,13 @@ Single source of truth for coding agents in this repository; `CLAUDE.md` only im
 
 "Nova Merchandising": a demo website that shows NovaDB as CMS and PIM in one. Every page, product, price, picture and UI text is read live from NovaDB's Delivery API. Stack: React Router 8 (framework mode: server render, then hydration), TypeScript.
 
+The idea of this demo is full-stack React the way React Router writes it: route modules whose `loader` reads NovaDB, `<Link>` and forms that navigate without a page load, hydration, and a filtered view that is a URL (GET forms read by the loader). Not shown on purpose: React Server Components (`unstable_` in React Router 8), a data library such as React Query (the loader is where data is read), NovaDB in the browser.
+
 Agencies and developers read this code to learn how the stack works with NovaDB, then change it for their own project. Measure every change against that: easy to read (a short path from URL to HTML, no layer of our own, fewer lines); the NovaDB code in the open, one place per concern; everything else (shop, pictures, SEO, deployment) in the smallest form that is right in concept; modern, idiomatic React Router and TypeScript; a complete site on the live API.
 
 This is the **reference implementation**: ports to other stacks copy its HTML structure, CSS classes, label keys (`app/lib/i18n.ts`), routes and shared files (`app/site.css`, `public/`) unchanged and run its Playwright suite against themselves. A change to any of those is a contract change: say so in your answer.
 
-Non-goals: reading NovaDB in the browser, writes to NovaDB, a database or shared cache, query strings, a cart of our own.
+Non-goals: reading NovaDB in the browser, writes to NovaDB, a database or shared cache, a cart of our own.
 
 ## Commands and gates
 
@@ -45,9 +47,9 @@ Before touching `app/lib/` or `app/components/Content.tsx` read `NOVADB.md`: the
 ## Where the code does not say why
 
 - Everything must work without JavaScript: check a changed page with JS off (the suite has such tests) and its HTML with `curl`.
-- A module that reads NovaDB (or uses Node) ends in `.server.ts`; a component imports only the others (`import type` excepted: it is erased). Data reaches the browser only through loaders and actions.
-- The site writes no query string and reads none (a foreign one is ignored): filters, sorting and search are POST forms answered with the page itself, so a filtered view has no URL of its own. That is intended. A route that accepts a form needs an `action` export, or the POST is a 405; a loader never sees the posted fields (the action answers them).
-- The range posts through a fetcher, never a navigation: a POST navigation would change history and scroll. Cards in a range are keyed by product: a card that stays keeps its element.
+- A module that reads NovaDB (or uses Node) ends in `.server.ts`; a component imports only the others (`import type` excepted: it is erased). Data reaches the browser only through loaders.
+- Filters, sorting, "Show more" and search are GET forms: their fields are the query string, which the route's `loader` reads (`queryOf`, `rangeOf`); a name no form uses changes nothing, and the canonical of a filtered view is the plain page. Without JavaScript the form submits and the page answers. In the browser `Range` sends the same fields as a navigation with `preventScrollReset`, leaves empty fields out of the address, and "Show more" `replace`s the history entry (Back leaves the range, not a batch). The route's `clientLoader` loads the first pictures before an answer shows. Cards in a range are keyed by product: a card that stays keeps its element.
+- No `href`, `src` or `action` carries a query string (the suite checks it): only a form builds one.
 - The region switch is a plain `<a>` (a document load): Shopify's cart takes the region's market when the page starts. CMS rich text links are document loads too.
 - `app/site.css`, `NOVADB.md` and everything in `public/` (`favicon.svg`, `robots.txt`, the fonts) are the same files in every port, kept identical from outside this repository: never adapt them to this stack. Only how they reach the browser is this demo's own (`?url` in `root.tsx`). `site.css` is also the CMS editor's stylesheet: keep its `@editor` markers, and between them nothing of the header, the range or the product page.
 - Page content is made from a closed set of components: a class `merch*` in content that is not in `COMPONENT_CLASSES` (in the shared suite) fails the suite. Compose, or follow the structure with CSS, before asking for a new one.

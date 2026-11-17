@@ -3,7 +3,7 @@ import { formatPrice, MARKET } from "~/lib/i18n";
 import { smallSrc } from "~/lib/images";
 import { searchFilter } from "~/lib/products";
 import { loadProducts } from "~/lib/products.server";
-import { formOf, regionOf } from "~/lib/request";
+import { queryOf, regionOf } from "~/lib/request";
 import { PRODUCT_SEARCH_FIELDS } from "~/lib/schema";
 import { searchPages } from "~/lib/site.server";
 
@@ -13,11 +13,11 @@ export type Suggestions = {
   pages: { title: string; url: string }[];
 };
 
-/** POST /api/suggest with the form fields `lang` and `q` → `Suggestions` (JSON) for the typeahead (`SearchBox.tsx`). */
-export async function action({ request }: Route.ActionArgs) {
-  const form = await formOf(request);
-  const region = regionOf(form.get("lang"));
-  const q = (form.get("q") ?? "").trim();
+/** GET /api/suggest?lang=&q= → `Suggestions` (JSON) for the typeahead (`SearchBox.tsx`). */
+export async function loader({ request }: Route.LoaderArgs) {
+  const query = queryOf(request);
+  const region = regionOf(query.get("lang"));
+  const q = (query.get("q") ?? "").trim();
   const productFilter = q.length >= 2 ? searchFilter(q, PRODUCT_SEARCH_FIELDS) : undefined;
   if (!productFilter) return Response.json({ products: [], pages: [] } satisfies Suggestions);
 
