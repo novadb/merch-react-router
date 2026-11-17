@@ -68,7 +68,7 @@ export function VisualDocument({ node, ctx, afterFirst }: { node?: VNode; ctx: C
   ctx = { ...ctx, firstImage: firstImage(node, ctx.images) };
   const [first, ...rest] = node.children ?? [];
   const Tag = (node.element || "div") as keyof JSX.IntrinsicElements;
-  // The root node (`visualComponentRoot`) comes from the CMS as `<div class="main">`: the `.main` of site.css.
+  // The root node (`merchComponentRoot`) comes from the CMS as `<div class="main">`: the `.main` of site.css.
   return (
     <Tag className={node.class}>
       {first &&<ContentNode node={first} ctx={ctx} />}
